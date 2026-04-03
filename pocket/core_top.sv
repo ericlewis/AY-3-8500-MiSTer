@@ -323,7 +323,7 @@ always @(posedge clk_sys) begin
             if (old_vs & ~syncV) vcnt <= 0;
         end
         if (hcnt == 21)  HBlank <= 0;
-        if (hcnt == 99)  HBlank <= 1;
+        if (hcnt == 100) HBlank <= 1;
         if (vcnt == 34)  VBlank_r <= 0;
         if (vcnt == 240) VBlank_r <= 1;
     end
@@ -334,14 +334,21 @@ assign video_rgb_clock    = clk_vid;
 assign video_rgb_clock_90 = clk_vid_90;
 assign video_skip = 1'b0;
 
+// Double-register HBlank through clk_vid to align with color data
+reg       hblank_d1, hblank_d2;
+reg       vblank_d1, vblank_d2;
 reg [7:0] vid_r, vid_g, vid_b;
 reg       vid_hs, vid_vs, vid_de;
+
 always @(posedge clk_vid) begin
-    vid_de <= ~HBlank & ~VBlank_r;
+    hblank_d1 <= HBlank;
+    hblank_d2 <= hblank_d1;
+    vblank_d1 <= VBlank_r;
+    vblank_d2 <= vblank_d1;
+    vid_de <= ~hblank_d2 & ~vblank_d2;
     vid_hs <= !syncH;
     vid_vs <= !syncV;
-    // Only output color during active area — force black during blank
-    if (~HBlank & ~VBlank_r) begin
+    if (~hblank_d2 & ~vblank_d2) begin
         vid_r <= {colorOut[11:8], colorOut[11:8]};
         vid_g <= {colorOut[7:4],  colorOut[7:4]};
         vid_b <= {colorOut[3:0],  colorOut[3:0]};
