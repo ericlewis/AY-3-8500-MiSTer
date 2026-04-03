@@ -148,19 +148,7 @@ bridge_interact #(.NUM_REGS(16)) interact_inst (
     .status(status)
 );
 
-wire [2:0] game_sel   = status[2:0];   // reg 0
-wire       autoserve  = status[32];    // reg 1 [0]
-wire       size       = status[64];    // reg 2 [0]
-wire       angle      = status[96];    // reg 3 [0]
-wire       speed      = status[128];   // reg 4 [0] — won't work, status is 128 bits max
-
-// Actually bridge_interact maps regs linearly:
-// reg 0 → status[2:0] (game)    ... wait, the mapping is different.
-// Let me re-read bridge_interact.sv to see the actual mapping.
-
-// From bridge_interact.sv:
-// status[2]     <= regs_sys[0][0]  → Video standard (C64-specific)
-// It's hardcoded for C64! We need to use the raw register values instead.
+// Settings come from the settings[] register file below, not from status[].
 
 // ======== Clocks ========
 wire clk_sys, clk_vid, clk_vid_90;
