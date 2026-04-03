@@ -743,6 +743,7 @@ set_global_assignment -name VERILOG_FILE core_bridge_cmd.v
 set_global_assignment -name SDC_FILE core_constraints.sdc
 set_global_assignment -name VERILOG_FILE pocket_pll.v
 set_global_assignment -name QIP_FILE mf_pllbase.qip
+set_global_assignment -name SYSTEMVERILOG_FILE mister_pocket_bridge/bridge_interact.sv
 set_global_assignment -name VERILOG_FILE ../rtl/ay38500NTSC.v
 set_global_assignment -name ENABLE_SIGNALTAP OFF
 set_instance_assignment -name WEAK_PULL_UP_RESISTOR ON -to bridge_1wire
