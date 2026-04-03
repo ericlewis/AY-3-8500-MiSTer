@@ -322,8 +322,8 @@ always @(posedge clk_sys) begin
             old_vs <= syncV;
             if (old_vs & ~syncV) vcnt <= 0;
         end
-        if (hcnt == 22)  HBlank <= 0;
-        if (hcnt == 98)  HBlank <= 1;
+        if (hcnt == 21)  HBlank <= 0;
+        if (hcnt == 100) HBlank <= 1;
         if (vcnt == 34)  VBlank_r <= 0;
         if (vcnt == 240) VBlank_r <= 1;
     end
@@ -337,15 +337,22 @@ assign video_skip = 1'b0;
 reg [7:0] vid_r, vid_g, vid_b;
 reg       vid_hs, vid_vs, vid_de;
 always @(posedge clk_vid) begin
-    vid_r  <= {colorOut[11:8], colorOut[11:8]};
-    vid_g  <= {colorOut[7:4],  colorOut[7:4]};
-    vid_b  <= {colorOut[3:0],  colorOut[3:0]};
+    vid_de <= ~HBlank & ~VBlank_r;
     vid_hs <= !syncH;
     vid_vs <= !syncV;
-    vid_de <= ~HBlank & ~VBlank_r;
+    // Only output color during active area — force black during blank
+    if (~HBlank & ~VBlank_r) begin
+        vid_r <= {colorOut[11:8], colorOut[11:8]};
+        vid_g <= {colorOut[7:4],  colorOut[7:4]};
+        vid_b <= {colorOut[3:0],  colorOut[3:0]};
+    end else begin
+        vid_r <= 0;
+        vid_g <= 0;
+        vid_b <= 0;
+    end
 end
 
-assign video_rgb = vid_de ? {vid_r, vid_g, vid_b} : 24'd0;
+assign video_rgb = {vid_r, vid_g, vid_b};
 assign video_de  = vid_de;
 assign video_vs  = vid_vs;
 assign video_hs  = vid_hs;
