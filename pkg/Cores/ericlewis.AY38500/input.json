@@ -1,0 +1,1 @@
+{"input":{"magic":"APF_VER_1","controllers":[{"type":"default","mappings":[{"id":0,"name":"P1 Up","key":"pad_btn_dpad_up"},{"id":1,"name":"P1 Down","key":"pad_btn_dpad_down"},{"id":4,"name":"Serve","key":"pad_btn_a"}]}]}}

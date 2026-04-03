@@ -1,0 +1,29 @@
+name: Build Pong Pocket Core
+on:
+  push:
+    branches: [master, pocket]
+    paths: ['pocket/**', 'rtl/**', 'pkg/**', '.github/workflows/pocket.yml']
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: ln -sf ../rtl pocket/rtl
+      - run: |
+          docker run --rm -v "${{ github.workspace }}:/build" -w /build/pocket \
+            raetro/quartus:pocket quartus_sh --flow compile AY38500_Pocket
+      - run: |
+          sudo chown -R runner:runner pocket/output_files/
+          python3 pocket/reverse_bitstream.py \
+            pocket/output_files/AY38500_Pocket.rbf pocket/output_files/bitstream.rbf_r
+      - run: |
+          mkdir -p release/Cores/ericlewis.AY38500 release/Platforms
+          cp pocket/output_files/bitstream.rbf_r release/Cores/ericlewis.AY38500/
+          cp pkg/Cores/ericlewis.AY38500/*.json release/Cores/ericlewis.AY38500/
+          cp pkg/Platforms/pong.json release/Platforms/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ericlewis.AY38500-pocket
+          path: release/
+          retention-days: 30
