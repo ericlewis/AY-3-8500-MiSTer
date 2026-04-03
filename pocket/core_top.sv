@@ -192,36 +192,20 @@ wire [4:0] paddleMoveSpeed = ball_speed ? 5'd8 : 5'd5;
 reg [8:0] p1pos = 9'd128, p2pos = 9'd128;
 reg [8:0] p1cap = 0, p2cap = 0;
 
-// P1: d-pad or left analog stick Y
-wire p1_use_analog = (cont1_joy[15:8] != 8'd128); // analog stick not centered
-wire [7:0] p1_analog = cont1_joy[15:8]; // lstick Y (0=top, 255=bottom)
-
-// P2: d-pad or left analog stick Y
-wire p2_use_analog = (cont2_joy[15:8] != 8'd128);
-wire [7:0] p2_analog = cont2_joy[15:8];
-
 always @(posedge clk_sys) begin
     reg old_hs, old_vs;
     old_hs <= syncH; old_vs <= syncV;
 
     if (syncV & !old_vs) begin
-        // Player 1
-        if (p1_use_analog) begin
-            p1cap <= p1_analog;
-        end else begin
-            p1cap <= p1pos;
-            if (cont1_key[0]) p1pos <= (p1pos < paddleMoveSpeed) ? 9'd0 : p1pos - paddleMoveSpeed;
-            if (cont1_key[1]) p1pos <= (p1pos + paddleMoveSpeed > 255) ? 9'd255 : p1pos + paddleMoveSpeed;
-        end
+        // Player 1 — d-pad
+        p1cap <= p1pos;
+        if (cont1_key[0]) p1pos <= (p1pos < paddleMoveSpeed) ? 9'd0 : p1pos - paddleMoveSpeed;
+        if (cont1_key[1]) p1pos <= (p1pos + paddleMoveSpeed > 255) ? 9'd255 : p1pos + paddleMoveSpeed;
 
-        // Player 2
-        if (p2_use_analog) begin
-            p2cap <= p2_analog;
-        end else begin
-            p2cap <= p2pos;
-            if (cont2_key[0]) p2pos <= (p2pos < paddleMoveSpeed) ? 9'd0 : p2pos - paddleMoveSpeed;
-            if (cont2_key[1]) p2pos <= (p2pos + paddleMoveSpeed > 255) ? 9'd255 : p2pos + paddleMoveSpeed;
-        end
+        // Player 2 — d-pad
+        p2cap <= p2pos;
+        if (cont2_key[0]) p2pos <= (p2pos < paddleMoveSpeed) ? 9'd0 : p2pos - paddleMoveSpeed;
+        if (cont2_key[1]) p2pos <= (p2pos + paddleMoveSpeed > 255) ? 9'd255 : p2pos + paddleMoveSpeed;
     end
     else if (syncH & !old_hs) begin
         if (p1cap != 0) p1cap <= p1cap - 1'd1;
