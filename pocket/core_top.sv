@@ -323,7 +323,7 @@ always @(posedge clk_sys) begin
             if (old_vs & ~syncV) vcnt <= 0;
         end
         if (hcnt == 21)  HBlank <= 0;
-        if (hcnt == 96)  HBlank <= 1;
+        if (hcnt == 99)  HBlank <= 1;
         if (vcnt == 34)  VBlank_r <= 0;
         if (vcnt == 240) VBlank_r <= 1;
     end
