@@ -322,8 +322,8 @@ always @(posedge clk_sys) begin
             old_vs <= syncV;
             if (old_vs & ~syncV) vcnt <= 0;
         end
-        if (hcnt == 21)  HBlank <= 0;
-        if (hcnt == 100) HBlank <= 1;
+        if (hcnt == 22)  HBlank <= 0;
+        if (hcnt == 98)  HBlank <= 1;
         if (vcnt == 34)  VBlank_r <= 0;
         if (vcnt == 240) VBlank_r <= 1;
     end
@@ -374,7 +374,8 @@ reg [4:0] audgen_lrck_cnt;
 reg audgen_lrck, audgen_dac;
 reg [15:0] audgen_shift;
 reg [15:0] aud_sample;
-always @(posedge clk_74a) aud_sample <= pong_audio ? 16'h4000 : 16'h0000;
+// Audio is signed I2S — full amplitude square wave on hit
+always @(posedge clk_74a) aud_sample <= pong_audio ? 16'h7FFF : 16'h0000;
 
 always @(negedge audgen_sclk) begin
     audgen_lrck_cnt <= audgen_lrck_cnt + 1'b1;
