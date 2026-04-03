@@ -42,7 +42,7 @@ input   wire [31:0] cont1_joy, cont2_joy, cont3_joy, cont4_joy,
 input   wire [15:0] cont1_trig, cont2_trig, cont3_trig, cont4_trig
 );
 
-// Tie-offs
+// ======== Tie-offs ========
 assign port_ir_tx=0; assign port_ir_rx_disable=1; assign bridge_endian_little=0;
 assign cart_tran_bank3=8'hzz; assign cart_tran_bank3_dir=0;
 assign cart_tran_bank2=8'hzz; assign cart_tran_bank2_dir=0;
@@ -68,10 +68,12 @@ assign sram_a=0; assign sram_dq={16{1'bZ}};
 assign sram_oe_n=1; assign sram_we_n=1; assign sram_ub_n=1; assign sram_lb_n=1;
 assign dbg_tx=1'bZ; assign user1=1'bZ; assign aux_scl=1'bZ; assign vpll_feed=1'bZ;
 
-// Bridge
+// ======== Bridge ========
 wire [31:0] cmd_bridge_rd_data;
+wire [31:0] interact_rd_data;
 always @(*) begin
     casex(bridge_addr)
+    32'h00xxxxxx: bridge_rd_data <= interact_rd_data;
     32'hF8xxxxxx: bridge_rd_data <= cmd_bridge_rd_data;
     default:      bridge_rd_data <= 0;
     endcase
@@ -79,9 +81,7 @@ end
 
 wire reset_n, pll_core_locked, pll_core_locked_s;
 synch_3 s01(pll_core_locked, pll_core_locked_s, clk_74a);
-wire status_boot_done = pll_core_locked_s;
-wire status_setup_done = pll_core_locked_s;
-wire status_running = reset_n;
+
 wire dataslot_requestread, dataslot_requestwrite, dataslot_update, dataslot_allcomplete;
 wire [15:0] dataslot_requestread_id, dataslot_requestwrite_id, dataslot_update_id;
 wire [31:0] dataslot_requestwrite_size, dataslot_update_size;
@@ -101,7 +101,7 @@ core_bridge_cmd icb(
     .bridge_endian_little(bridge_endian_little),
     .bridge_addr(bridge_addr), .bridge_rd(bridge_rd), .bridge_rd_data(cmd_bridge_rd_data),
     .bridge_wr(bridge_wr), .bridge_wr_data(bridge_wr_data),
-    .status_boot_done(status_boot_done), .status_setup_done(status_setup_done), .status_running(status_running),
+    .status_boot_done(pll_core_locked_s), .status_setup_done(pll_core_locked_s), .status_running(reset_n),
     .dataslot_requestread(dataslot_requestread), .dataslot_requestread_id(dataslot_requestread_id),
     .dataslot_requestread_ack(1'b1), .dataslot_requestread_ok(1'b1),
     .dataslot_requestwrite(dataslot_requestwrite), .dataslot_requestwrite_id(dataslot_requestwrite_id),
@@ -123,9 +123,49 @@ core_bridge_cmd icb(
     .datatable_addr(datatable_addr), .datatable_wren(datatable_wren), .datatable_data(datatable_data), .datatable_q(datatable_q)
 );
 
-// Clocks
+// No target commands needed
+always @(posedge clk_74a) begin
+    target_dataslot_read <= 0; target_dataslot_write <= 0;
+    target_dataslot_getfile <= 0; target_dataslot_openfile <= 0;
+end
+
+// ======== Interact → Settings ========
+// Reg 0: Game select (0-4)
+// Reg 1: Auto serve
+// Reg 2: Paddle size
+// Reg 3: Ball angle
+// Reg 4: Ball speed
+// Reg 5: Color palette (0-7)
+wire [127:0] status;
+
+bridge_interact #(.NUM_REGS(16)) interact_inst (
+    .clk_74a(clk_74a), .clk_sys(clk_sys),
+    .bridge_addr(bridge_addr),
+    .bridge_wr(bridge_wr & (bridge_addr[31:24] == 8'h00)),
+    .bridge_wr_data(bridge_wr_data),
+    .bridge_rd(bridge_rd & (bridge_addr[31:24] == 8'h00)),
+    .bridge_rd_data(interact_rd_data),
+    .status(status)
+);
+
+wire [2:0] game_sel   = status[2:0];   // reg 0
+wire       autoserve  = status[32];    // reg 1 [0]
+wire       size       = status[64];    // reg 2 [0]
+wire       angle      = status[96];    // reg 3 [0]
+wire       speed      = status[128];   // reg 4 [0] — won't work, status is 128 bits max
+
+// Actually bridge_interact maps regs linearly:
+// reg 0 → status[2:0] (game)    ... wait, the mapping is different.
+// Let me re-read bridge_interact.sv to see the actual mapping.
+
+// From bridge_interact.sv:
+// status[2]     <= regs_sys[0][0]  → Video standard (C64-specific)
+// It's hardcoded for C64! We need to use the raw register values instead.
+
+// ======== Clocks ========
 wire clk_sys, clk_vid, clk_vid_90;
-pll pll_inst(.refclk(clk_74a), .rst(1'b0), .outclk_0(clk_sys), .outclk_1(clk_vid), .outclk_2(clk_vid_90), .locked(pll_core_locked));
+pll pll_inst(.refclk(clk_74a), .rst(1'b0),
+    .outclk_0(clk_sys), .outclk_1(clk_vid), .outclk_2(clk_vid_90), .locked(pll_core_locked));
 
 // 2 MHz clock enable (48/24)
 reg ce_2m;
@@ -136,28 +176,83 @@ always @(posedge clk_sys) begin
     ce_2m <= !div;
 end
 
-// Reset
+// ======== Reset ========
 reg [19:0] reset_cnt = 20'd200000;
-wire chip_reset = |reset_cnt;
+wire chip_reset = |reset_cnt | cont1_key[15]; // Start button = reset
 always @(posedge clk_sys)
     if (reset_cnt) reset_cnt <= reset_cnt - 1'd1;
 
-// Paddle emulation (digital only for now)
+// ======== Settings from interact registers ========
+// Read raw register values from bridge_interact via status mapping
+// bridge_interact maps: regs_sys[N] → status bits
+// For simplicity, read the interact registers directly from bridge writes
+// Since bridge_interact is C64-specific, let's use a simple register file instead
+
+reg [31:0] settings [0:7];
+integer si;
+initial for (si = 0; si < 8; si = si + 1) settings[si] = 0;
+
+always @(posedge clk_74a) begin
+    if (bridge_wr && bridge_addr[31:24] == 8'h00 && bridge_addr[7:2] < 8)
+        settings[bridge_addr[4:2]] <= bridge_wr_data;
+end
+
+// Sync to clk_sys
+reg [31:0] set_sys [0:7];
+reg [31:0] set_meta [0:7];
+integer sj;
+always @(posedge clk_sys) begin
+    for (sj = 0; sj < 8; sj = sj + 1) begin
+        set_meta[sj] <= settings[sj];
+        set_sys[sj]  <= set_meta[sj];
+    end
+end
+
+wire [2:0] game_select_val = set_sys[0][2:0]; // 0=Tennis,1=Soccer,2=Handicap,3=Squash,4=Practice
+wire       auto_serve      = set_sys[1][0];
+wire       bat_size        = set_sys[2][0];    // 0=Big, 1=Small
+wire       ball_angle      = set_sys[3][0];    // 0=Angle1, 1=Angle2
+wire       ball_speed      = set_sys[4][0];    // 0=Slow, 1=Fast
+wire [2:0] color_palette   = set_sys[5][2:0];  // 0-7
+
+reg [7:0] gameSelect;
+always @(posedge clk_sys) gameSelect <= 8'd1 << game_select_val;
+
+// ======== Paddle Emulation ========
+wire [4:0] paddleMoveSpeed = ball_speed ? 5'd8 : 5'd5;
 reg [8:0] p1pos = 9'd128, p2pos = 9'd128;
 reg [8:0] p1cap = 0, p2cap = 0;
-wire [4:0] paddleSpeed = 5'd5;
+
+// P1: d-pad or left analog stick Y
+wire p1_use_analog = (cont1_joy[15:8] != 8'd128); // analog stick not centered
+wire [7:0] p1_analog = cont1_joy[15:8]; // lstick Y (0=top, 255=bottom)
+
+// P2: d-pad or left analog stick Y
+wire p2_use_analog = (cont2_joy[15:8] != 8'd128);
+wire [7:0] p2_analog = cont2_joy[15:8];
 
 always @(posedge clk_sys) begin
     reg old_hs, old_vs;
     old_hs <= syncH; old_vs <= syncV;
-    if (syncV & !old_vs) begin
-        p1cap <= p1pos;
-        if (cont1_key[0]) p1pos <= (p1pos < paddleSpeed) ? 9'd0 : p1pos - paddleSpeed;     // up
-        if (cont1_key[1]) p1pos <= (p1pos + paddleSpeed > 255) ? 9'd255 : p1pos + paddleSpeed; // down
 
-        p2cap <= p2pos;
-        if (cont2_key[0]) p2pos <= (p2pos < paddleSpeed) ? 9'd0 : p2pos - paddleSpeed;
-        if (cont2_key[1]) p2pos <= (p2pos + paddleSpeed > 255) ? 9'd255 : p2pos + paddleSpeed;
+    if (syncV & !old_vs) begin
+        // Player 1
+        if (p1_use_analog) begin
+            p1cap <= p1_analog;
+        end else begin
+            p1cap <= p1pos;
+            if (cont1_key[0]) p1pos <= (p1pos < paddleMoveSpeed) ? 9'd0 : p1pos - paddleMoveSpeed;
+            if (cont1_key[1]) p1pos <= (p1pos + paddleMoveSpeed > 255) ? 9'd255 : p1pos + paddleMoveSpeed;
+        end
+
+        // Player 2
+        if (p2_use_analog) begin
+            p2cap <= p2_analog;
+        end else begin
+            p2cap <= p2pos;
+            if (cont2_key[0]) p2pos <= (p2pos < paddleMoveSpeed) ? 9'd0 : p2pos - paddleMoveSpeed;
+            if (cont2_key[1]) p2pos <= (p2pos + paddleMoveSpeed > 255) ? 9'd255 : p2pos + paddleMoveSpeed;
+        end
     end
     else if (syncH & !old_hs) begin
         if (p1cap != 0) p1cap <= p1cap - 1'd1;
@@ -165,7 +260,7 @@ always @(posedge clk_sys) begin
     end
 end
 
-// AY-3-8500 chip
+// ======== AY-3-8500 Chip ========
 wire pong_audio, rpOut, lpOut, ballOut, sfOut, syncH, syncV;
 
 ay38500NTSC the_chip (
@@ -179,33 +274,88 @@ ay38500NTSC the_chip (
     .syncH       (syncH),
     .syncV       (syncV),
     .pinSound    (pong_audio),
-    .pinManualServe(!(cont1_key[4] | cont2_key[4])), // A button = serve
-    .pinBallAngle(1'b0),
-    .pinBatSize  (1'b0),
-    .pinBallSpeed(1'b0),
-    .pinPractice (1'b1),
-    .pinSquash   (1'b1),
-    .pinSoccer   (1'b1),
-    .pinTennis   (1'b0), // Tennis by default
-    .pinRifle1   (1'b1),
-    .pinRifle2   (1'b1),
+    .pinManualServe(!(auto_serve | cont1_key[4] | cont2_key[4])),
+    .pinBallAngle(!ball_angle),
+    .pinBatSize  (!bat_size),
+    .pinBallSpeed(!ball_speed),
+    .pinPractice (!gameSelect[4]),
+    .pinSquash   (!gameSelect[3]),
+    .pinSoccer   (!gameSelect[1]),
+    .pinTennis   (!gameSelect[0]),
+    .pinRifle1   (!gameSelect[5]),
+    .pinRifle2   (!gameSelect[6]),
     .pinHitIn    (pong_audio),
     .pinShotIn   (1'b1),
     .pinLPin     (p1cap == 0),
-    .pinRPin     (p2cap == 0)
+    .pinRPin     (gameSelect[4] ? (p1cap == 0) : (p2cap == 0))
 );
 
-// Video: color from chip outputs (mono white-on-black)
+// ======== Video: Full Color Palette ========
 reg [11:0] colorOut;
 always @(posedge clk_sys) begin
-    if (ballOut)         colorOut <= 12'hFFF;
-    else if (lpOut)      colorOut <= 12'hFFF;
-    else if (rpOut)      colorOut <= 12'hFFF;
-    else if (sfOut)      colorOut <= 12'hFFF;
-    else                 colorOut <= 12'h000;
+    if (ballOut) begin
+        case (color_palette)
+            3'd0: colorOut <= 12'hFFF; // Mono
+            3'd1: colorOut <= 12'hFFF; // Greyscale
+            3'd2: colorOut <= 12'hF00; // RGB1
+            3'd3: colorOut <= 12'hFFF; // RGB2
+            3'd4: colorOut <= 12'h000; // Field
+            3'd5: colorOut <= 12'h000; // Ice
+            3'd6: colorOut <= 12'hFFF; // Christmas
+            3'd7: colorOut <= 12'hFFF; // Marksman
+        endcase
+    end
+    else if (lpOut) begin
+        case (color_palette)
+            3'd0: colorOut <= 12'hFFF;
+            3'd1: colorOut <= 12'hFFF;
+            3'd2: colorOut <= 12'h0F0;
+            3'd3: colorOut <= 12'h00F;
+            3'd4: colorOut <= 12'hF00;
+            3'd5: colorOut <= 12'hF00;
+            3'd6: colorOut <= 12'hF00;
+            3'd7: colorOut <= 12'hFF0;
+        endcase
+    end
+    else if (rpOut) begin
+        case (color_palette)
+            3'd0: colorOut <= 12'hFFF;
+            3'd1: colorOut <= 12'h000;
+            3'd2: colorOut <= 12'h0F0;
+            3'd3: colorOut <= 12'hF00;
+            3'd4: colorOut <= 12'h00F;
+            3'd5: colorOut <= 12'h030;
+            3'd6: colorOut <= 12'h030;
+            3'd7: colorOut <= 12'h000;
+        endcase
+    end
+    else if (sfOut) begin
+        case (color_palette)
+            3'd0: colorOut <= 12'hFFF;
+            3'd1: colorOut <= 12'hFFF;
+            3'd2: colorOut <= 12'h00F;
+            3'd3: colorOut <= 12'h0F0;
+            3'd4: colorOut <= 12'hFFF;
+            3'd5: colorOut <= 12'h55F;
+            3'd6: colorOut <= 12'hFFF;
+            3'd7: colorOut <= 12'hFFF;
+        endcase
+    end
+    else begin
+        case (color_palette)
+            3'd0: colorOut <= 12'h000;
+            3'd1: colorOut <= 12'h999;
+            3'd2: colorOut <= 12'h000;
+            3'd3: colorOut <= 12'h000;
+            3'd4: colorOut <= 12'h4F4;
+            3'd5: colorOut <= 12'hCCF;
+            3'd6: colorOut <= 12'h000;
+            3'd7: colorOut <= 12'h0D0;
+        endcase
+    end
 end
 
-// Blanking
+// ======== Blanking ========
 reg HBlank, VBlank_r;
 always @(posedge clk_sys) begin
     reg [10:0] hcnt, vcnt;
@@ -226,7 +376,7 @@ always @(posedge clk_sys) begin
     end
 end
 
-// Video output at 6 MHz pixel clock
+// ======== Video Output ========
 assign video_rgb_clock    = clk_vid;
 assign video_rgb_clock_90 = clk_vid_90;
 assign video_skip = 1'b0;
@@ -247,7 +397,7 @@ assign video_de  = vid_de;
 assign video_vs  = vid_vs;
 assign video_hs  = vid_hs;
 
-// Audio: 1-bit → I2S
+// ======== Audio: 1-bit → I2S ========
 assign audio_mclk = audgen_mclk;
 assign audio_dac  = audgen_dac;
 assign audio_lrck = audgen_lrck;
@@ -271,7 +421,7 @@ reg [4:0] audgen_lrck_cnt;
 reg audgen_lrck, audgen_dac;
 reg [15:0] audgen_shift;
 reg [15:0] aud_sample;
-always @(posedge clk_74a) aud_sample <= {pong_audio, 15'd0};
+always @(posedge clk_74a) aud_sample <= pong_audio ? 16'h4000 : 16'h0000;
 
 always @(negedge audgen_sclk) begin
     audgen_lrck_cnt <= audgen_lrck_cnt + 1'b1;
