@@ -70,10 +70,9 @@ assign dbg_tx=1'bZ; assign user1=1'bZ; assign aux_scl=1'bZ; assign vpll_feed=1'b
 
 // ======== Bridge ========
 wire [31:0] cmd_bridge_rd_data;
-wire [31:0] interact_rd_data;
 always @(*) begin
     casex(bridge_addr)
-    32'h00xxxxxx: bridge_rd_data <= interact_rd_data;
+    32'h50xxxxxx: bridge_rd_data <= settings[bridge_addr[4:2]];
     32'hF8xxxxxx: bridge_rd_data <= cmd_bridge_rd_data;
     default:      bridge_rd_data <= 0;
     endcase
@@ -136,20 +135,6 @@ end
 // Reg 3: Ball angle
 // Reg 4: Ball speed
 // Reg 5: Color palette (0-7)
-wire [127:0] status;
-
-bridge_interact #(.NUM_REGS(16)) interact_inst (
-    .clk_74a(clk_74a), .clk_sys(clk_sys),
-    .bridge_addr(bridge_addr),
-    .bridge_wr(bridge_wr & (bridge_addr[31:24] == 8'h00)),
-    .bridge_wr_data(bridge_wr_data),
-    .bridge_rd(bridge_rd & (bridge_addr[31:24] == 8'h00)),
-    .bridge_rd_data(interact_rd_data),
-    .status(status)
-);
-
-// Settings come from the settings[] register file below, not from status[].
-
 // ======== Clocks ========
 wire clk_sys, clk_vid, clk_vid_90;
 pll pll_inst(.refclk(clk_74a), .rst(1'b0),
@@ -171,17 +156,13 @@ always @(posedge clk_sys)
     if (reset_cnt) reset_cnt <= reset_cnt - 1'd1;
 
 // ======== Settings from interact registers ========
-// Read raw register values from bridge_interact via status mapping
-// bridge_interact maps: regs_sys[N] → status bits
-// For simplicity, read the interact registers directly from bridge writes
-// Since bridge_interact is C64-specific, let's use a simple register file instead
-
+// Settings register file — captures bridge writes at 0x50xxxxxx
 reg [31:0] settings [0:7];
 integer si;
 initial for (si = 0; si < 8; si = si + 1) settings[si] = 0;
 
 always @(posedge clk_74a) begin
-    if (bridge_wr && bridge_addr[31:24] == 8'h00 && bridge_addr[7:2] < 8)
+    if (bridge_wr && bridge_addr[31:24] == 8'h50 && bridge_addr[4:2] < 8)
         settings[bridge_addr[4:2]] <= bridge_wr_data;
 end
 

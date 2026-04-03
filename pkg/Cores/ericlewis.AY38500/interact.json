@@ -3,11 +3,13 @@
     "magic": "APF_VER_1",
     "variables": [
       {
-        "id": "0x00",
+        "id": "0x10",
         "name": "Game",
         "type": "list",
-        "address": "0x00000000",
+        "enabled": true,
+        "address": "0x50000000",
         "defaultval": "0x00",
+        "persist": true,
         "options": [
           { "value": "0x00", "name": "Tennis" },
           { "value": "0x01", "name": "Soccer" },
@@ -17,55 +19,65 @@
         ]
       },
       {
-        "id": "0x01",
+        "id": "0x11",
         "name": "Auto Serve",
         "type": "list",
-        "address": "0x00000004",
+        "enabled": true,
+        "address": "0x50000004",
         "defaultval": "0x00",
+        "persist": true,
         "options": [
           { "value": "0x00", "name": "No" },
           { "value": "0x01", "name": "Yes" }
         ]
       },
       {
-        "id": "0x02",
+        "id": "0x12",
         "name": "Paddle Size",
         "type": "list",
-        "address": "0x00000008",
+        "enabled": true,
+        "address": "0x50000008",
         "defaultval": "0x00",
+        "persist": true,
         "options": [
           { "value": "0x00", "name": "Big" },
           { "value": "0x01", "name": "Small" }
         ]
       },
       {
-        "id": "0x03",
+        "id": "0x13",
         "name": "Ball Angle",
         "type": "list",
-        "address": "0x0000000C",
+        "enabled": true,
+        "address": "0x5000000C",
         "defaultval": "0x00",
+        "persist": true,
         "options": [
           { "value": "0x00", "name": "1" },
           { "value": "0x01", "name": "2" }
         ]
       },
       {
-        "id": "0x04",
+        "id": "0x14",
         "name": "Ball Speed",
         "type": "list",
-        "address": "0x00000010",
+        "enabled": true,
+        "address": "0x50000010",
         "defaultval": "0x00",
+        "persist": true,
         "options": [
           { "value": "0x00", "name": "Slow" },
           { "value": "0x01", "name": "Fast" }
         ]
       },
       {
-        "id": "0x05",
+        "id": "0x15",
         "name": "Color Palette",
         "type": "list",
-        "address": "0x00000014",
+        "enabled": true,
+        "address": "0x50000014",
         "defaultval": "0x00",
+        "persist": true,
         "options": [
           { "value": "0x00", "name": "Mono" },
           { "value": "0x01", "name": "Greyscale" },
