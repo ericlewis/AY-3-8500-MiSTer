@@ -150,11 +150,12 @@ assign datatable_wren = 1'b0;
 assign datatable_data = 32'd0;
 
 reg  [31:0] savestate_wr_buf_74a [0:SAVESTATE_WORDS-1];
+reg  [31:0] savestate_load_snap_74a [0:SAVESTATE_WORDS-1];
 reg  [31:0] savestate_rd_buf_sys [0:SAVESTATE_WORDS-1];
 reg  [31:0] savestate_rd_meta_74a [0:SAVESTATE_WORDS-1];
 reg  [31:0] savestate_rd_buf_74a [0:SAVESTATE_WORDS-1];
-reg  [31:0] savestate_wr_meta_sys [0:SAVESTATE_WORDS-1];
-reg  [31:0] savestate_wr_buf_sys [0:SAVESTATE_WORDS-1];
+reg  [31:0] savestate_load_meta_sys [0:SAVESTATE_WORDS-1];
+reg  [31:0] savestate_load_buf_sys [0:SAVESTATE_WORDS-1];
 
 reg savestate_save_req_toggle_74a = 0;
 reg savestate_save_req_meta_sys = 0, savestate_save_req_sys = 0, savestate_save_req_seen_sys = 0;
@@ -194,7 +195,7 @@ wire [TOP_STATE_BITS-1:0] top_state_out = {
     p2cap
 };
 
-wire [TOP_STATE_BITS-1:0] top_state_in = {savestate_wr_buf_sys[6], savestate_wr_buf_sys[7], savestate_wr_buf_sys[8]};
+wire [TOP_STATE_BITS-1:0] top_state_in = {savestate_load_buf_sys[6], savestate_load_buf_sys[7], savestate_load_buf_sys[8]};
 wire [7:0] savestate_gameSelect;
 wire [5:0] savestate_ce_2m_div;
 wire savestate_ce_2m;
@@ -222,7 +223,7 @@ assign {
     savestate_p2cap
 } = top_state_in;
 
-wire [31:0] extra_state_in = savestate_wr_buf_sys[14];
+wire [31:0] extra_state_in = savestate_load_buf_sys[14];
 wire [31:0] extra_state_out = {3'd0, reset_cnt, paddle_old_hs, paddle_old_vs, 7'd0};
 wire [19:0] savestate_reset_cnt = extra_state_in[28:9];
 wire        savestate_paddle_old_hs = extra_state_in[8];
@@ -231,11 +232,11 @@ wire        savestate_paddle_old_vs = extra_state_in[7];
 wire [CHIP_STATE_BITS-1:0] chip_state_out;
 wire [159:0] chip_state_out_padded = {9'd0, chip_state_out};
 wire [159:0] chip_state_in_padded = {
-    savestate_wr_buf_sys[9],
-    savestate_wr_buf_sys[10],
-    savestate_wr_buf_sys[11],
-    savestate_wr_buf_sys[12],
-    savestate_wr_buf_sys[13]
+    savestate_load_buf_sys[9],
+    savestate_load_buf_sys[10],
+    savestate_load_buf_sys[11],
+    savestate_load_buf_sys[12],
+    savestate_load_buf_sys[13]
 };
 wire [CHIP_STATE_BITS-1:0] chip_state_in = chip_state_in_padded[CHIP_STATE_BITS-1:0];
 
@@ -245,11 +246,12 @@ integer ssi;
 initial begin
     for (ssi = 0; ssi < SAVESTATE_WORDS; ssi = ssi + 1) begin
         savestate_wr_buf_74a[ssi] = 32'd0;
+        savestate_load_snap_74a[ssi] = 32'd0;
         savestate_rd_buf_sys[ssi] = 32'd0;
         savestate_rd_meta_74a[ssi] = 32'd0;
         savestate_rd_buf_74a[ssi] = 32'd0;
-        savestate_wr_meta_sys[ssi] = 32'd0;
-        savestate_wr_buf_sys[ssi] = 32'd0;
+        savestate_load_meta_sys[ssi] = 32'd0;
+        savestate_load_buf_sys[ssi] = 32'd0;
     end
 end
 
@@ -283,6 +285,8 @@ always @(posedge clk_74a) begin
     end
 
     if (savestate_load && !savestate_load_d) begin
+        for (i = 0; i < SAVESTATE_WORDS; i = i + 1)
+            savestate_load_snap_74a[i] <= savestate_wr_buf_74a[i];
         savestate_load_ack <= 1;
         savestate_load_ok <= 0;
         savestate_load_busy <= 1;
@@ -371,18 +375,18 @@ reg [31:0] set_meta [0:7];
 integer sj;
 always @(posedge clk_sys) begin
     if (state_load_sys) begin
-        set_meta[0] <= savestate_wr_buf_sys[0];
-        set_meta[1] <= savestate_wr_buf_sys[1];
-        set_meta[2] <= savestate_wr_buf_sys[2];
-        set_meta[3] <= savestate_wr_buf_sys[3];
-        set_meta[4] <= savestate_wr_buf_sys[4];
-        set_meta[5] <= savestate_wr_buf_sys[5];
-        set_sys[0] <= savestate_wr_buf_sys[0];
-        set_sys[1] <= savestate_wr_buf_sys[1];
-        set_sys[2] <= savestate_wr_buf_sys[2];
-        set_sys[3] <= savestate_wr_buf_sys[3];
-        set_sys[4] <= savestate_wr_buf_sys[4];
-        set_sys[5] <= savestate_wr_buf_sys[5];
+        set_meta[0] <= savestate_load_buf_sys[0];
+        set_meta[1] <= savestate_load_buf_sys[1];
+        set_meta[2] <= savestate_load_buf_sys[2];
+        set_meta[3] <= savestate_load_buf_sys[3];
+        set_meta[4] <= savestate_load_buf_sys[4];
+        set_meta[5] <= savestate_load_buf_sys[5];
+        set_sys[0] <= savestate_load_buf_sys[0];
+        set_sys[1] <= savestate_load_buf_sys[1];
+        set_sys[2] <= savestate_load_buf_sys[2];
+        set_sys[3] <= savestate_load_buf_sys[3];
+        set_sys[4] <= savestate_load_buf_sys[4];
+        set_sys[5] <= savestate_load_buf_sys[5];
     end else begin
         for (sj = 0; sj < 8; sj = sj + 1) begin
             set_meta[sj] <= settings[sj];
@@ -401,8 +405,8 @@ wire [2:0] color_palette   = set_sys[5][2:0];  // 0-7
 always @(posedge clk_sys) begin
     integer i;
     for (i = 0; i < SAVESTATE_WORDS; i = i + 1) begin
-        savestate_wr_meta_sys[i] <= savestate_wr_buf_74a[i];
-        savestate_wr_buf_sys[i] <= savestate_wr_meta_sys[i];
+        savestate_load_meta_sys[i] <= savestate_load_snap_74a[i];
+        savestate_load_buf_sys[i] <= savestate_load_meta_sys[i];
     end
 
     savestate_save_req_meta_sys <= savestate_save_req_toggle_74a;
