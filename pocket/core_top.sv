@@ -358,12 +358,12 @@ initial for (si = 0; si < 8; si = si + 1) settings[si] = 0;
 
 always @(posedge clk_74a) begin
     if (apply_savestate_settings_74a) begin
-        settings[0] <= savestate_wr_buf_74a[0];
-        settings[1] <= savestate_wr_buf_74a[1];
-        settings[2] <= savestate_wr_buf_74a[2];
-        settings[3] <= savestate_wr_buf_74a[3];
-        settings[4] <= savestate_wr_buf_74a[4];
-        settings[5] <= savestate_wr_buf_74a[5];
+        settings[0] <= savestate_load_snap_74a[0];
+        settings[1] <= savestate_load_snap_74a[1];
+        settings[2] <= savestate_load_snap_74a[2];
+        settings[3] <= savestate_load_snap_74a[3];
+        settings[4] <= savestate_load_snap_74a[4];
+        settings[5] <= savestate_load_snap_74a[5];
     end else if (bridge_wr && bridge_addr[31:24] == 8'h50 && bridge_addr[4:2] < 8) begin
         settings[bridge_addr[4:2]] <= bridge_wr_data;
     end
