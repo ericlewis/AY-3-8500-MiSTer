@@ -58,7 +58,7 @@ module ay38500NTSC(
 	assign pinRifle1_DWN = !or150;
 	assign pinTennis_DWN = !or211;
 	assign pinSFout = or212;
-`define RESTORE_OR(REG) if(state_load) REG <= state_load_``REG; else
+`define RESTORE_OR(REG, LOAD) if(state_load) REG <= LOAD; else
 	wire state_load_counter5_jump;
 	wire state_load_counter5_delay;
 	wire [9:0] state_load_counter5;
@@ -324,14 +324,14 @@ module ay38500NTSC(
 	//MC: flop0 was tweaked
 	reg flop0 = 0;
 	always @(posedge superclock) begin
-		`RESTORE_OR(flop0)
+		`RESTORE_OR(flop0, state_load_flop0)
 		begin
 			flop0 <= flop2;
 		end
 	end
 	reg flop1 = 0;
 	always @(posedge superclock) begin
-		`RESTORE_OR(flop1)
+		`RESTORE_OR(flop1, state_load_flop1)
 		begin
 			if(!or213 | counter5_2268)
 				flop1 <= 0;
@@ -341,7 +341,7 @@ module ay38500NTSC(
 	end
 	reg flop2 = 0;
 	always @(posedge superclock) begin
-		`RESTORE_OR(flop2)
+		`RESTORE_OR(flop2, state_load_flop2)
 		begin
 			if(!or213 | counter4_2130)
 				flop2 <= 0;
@@ -351,7 +351,7 @@ module ay38500NTSC(
 	end
 	reg flop3 = 0;//MC: set/reset priority have been reversed + reset added to flop3_set's OR
 	always @(posedge superclock) begin
-		`RESTORE_OR(flop3)
+		`RESTORE_OR(flop3, state_load_flop3)
 		begin
 			if(!pinManualServe)// | reset
 				flop3 <= 0;
@@ -361,7 +361,7 @@ module ay38500NTSC(
 	end
 	reg flop4 = 0;
 	always @(posedge superclock) begin
-		`RESTORE_OR(flop4)
+		`RESTORE_OR(flop4, state_load_flop4)
 		begin
 			if(!or16 | or24 | or27 | !or213)
 				flop4 <= 0;
@@ -371,7 +371,7 @@ module ay38500NTSC(
 	end
 	reg flop5 = 0;
 	always @(posedge superclock) begin
-		`RESTORE_OR(flop5)
+		`RESTORE_OR(flop5, state_load_flop5)
 		begin
 			if(or27 | or22)
 				flop5 <= 0;
@@ -381,7 +381,7 @@ module ay38500NTSC(
 	end
 	reg flop6 = 0;
 	always @(posedge superclock) begin
-		`RESTORE_OR(flop6)
+		`RESTORE_OR(flop6, state_load_flop6)
 		begin
 			if(!reset | !or88)
 				flop6 <= 0;
@@ -391,7 +391,7 @@ module ay38500NTSC(
 	end
 	reg flop7 = 0;
 	always @(posedge superclock) begin
-		`RESTORE_OR(flop7)
+		`RESTORE_OR(flop7, state_load_flop7)
 		begin
 			if(!reset | !or63)
 				flop7 <= 0;
@@ -423,7 +423,7 @@ module ay38500NTSC(
 	end
 	reg flop12 = 0;
 	always @(posedge superclock) begin
-		`RESTORE_OR(flop12)
+		`RESTORE_OR(flop12, state_load_flop12)
 		begin
 			if(!or92)
 				flop12 <= 0;
@@ -433,7 +433,7 @@ module ay38500NTSC(
 	end
 	reg flop13 = 0;
 	always @(posedge superclock) begin
-		`RESTORE_OR(flop13)
+		`RESTORE_OR(flop13, state_load_flop13)
 		begin
 			if(!or169)
 				flop13 <= 0;
@@ -443,7 +443,7 @@ module ay38500NTSC(
 	end
 	reg flop14 = 0;
 	always @(posedge superclock) begin
-		`RESTORE_OR(flop14)
+		`RESTORE_OR(flop14, state_load_flop14)
 		begin
 			if(pulser1)
 				flop14 <= 0;
@@ -453,7 +453,7 @@ module ay38500NTSC(
 	end
 	reg flop15 = 0;
 	always @(posedge superclock) begin
-		`RESTORE_OR(flop15)
+		`RESTORE_OR(flop15, state_load_flop15)
 		begin
 			if(!or135)
 				flop15 <= 0;
@@ -463,7 +463,7 @@ module ay38500NTSC(
 	end
 	reg flop16 = 0;
 	always @(posedge superclock) begin
-		`RESTORE_OR(flop16)
+		`RESTORE_OR(flop16, state_load_flop16)
 		begin
 			if(or144)
 				flop16 <= 0;
@@ -473,7 +473,7 @@ module ay38500NTSC(
 	end
 	reg flop17 = 0;
 	always @(posedge superclock) begin
-		`RESTORE_OR(flop17)
+		`RESTORE_OR(flop17, state_load_flop17)
 		begin
 			if(or149)
 				flop17 <= 0;
@@ -483,7 +483,7 @@ module ay38500NTSC(
 	end
 	reg flop18 = 0;
 	always @(posedge superclock) begin
-		`RESTORE_OR(flop18)
+		`RESTORE_OR(flop18, state_load_flop18)
 		begin
 			if(!reset)
 				flop18 <= 0;
@@ -493,7 +493,7 @@ module ay38500NTSC(
 	end
 	reg flop19 = 0;
 	always @(posedge superclock) begin
-		`RESTORE_OR(flop19)
+		`RESTORE_OR(flop19, state_load_flop19)
 		begin
 			if(!or155)
 				flop19 <= 0;
@@ -503,7 +503,7 @@ module ay38500NTSC(
 	end
 	reg flop20 = 0;
 	always @(posedge superclock) begin
-		`RESTORE_OR(flop20)
+		`RESTORE_OR(flop20, state_load_flop20)
 		begin
 			if(!or143)
 				flop20 <= 0;
@@ -513,7 +513,7 @@ module ay38500NTSC(
 	end
 	reg flop21 = 0;
 	always @(posedge superclock) begin
-		`RESTORE_OR(flop21)
+		`RESTORE_OR(flop21, state_load_flop21)
 		begin
 			if(or146)
 				flop21 <= 0;
@@ -523,7 +523,7 @@ module ay38500NTSC(
 	end
 	reg flop22 = 0;
 	always @(posedge superclock) begin
-		`RESTORE_OR(flop22)
+		`RESTORE_OR(flop22, state_load_flop22)
 		begin
 			if(or152)
 				flop22 <= flop21;
@@ -531,7 +531,7 @@ module ay38500NTSC(
 	end
 	reg flop23 = 0;
 	always @(posedge superclock) begin
-		`RESTORE_OR(flop23)
+		`RESTORE_OR(flop23, state_load_flop23)
 		begin
 			if(!or70)
 				flop23 <= 0;
@@ -541,7 +541,7 @@ module ay38500NTSC(
 	end
 	reg flop24 = 0;//MC: Set/Reset priority has been swapped
 	always @(posedge superclock) begin
-		`RESTORE_OR(flop24)
+		`RESTORE_OR(flop24, state_load_flop24)
 		begin
 			if(flop25)
 				flop24 <= 1;
@@ -551,7 +551,7 @@ module ay38500NTSC(
 	end
 	reg flop25 = 0;//MC: Set/Reset priority has been swapped
 	always @(posedge superclock) begin
-		`RESTORE_OR(flop25)
+		`RESTORE_OR(flop25, state_load_flop25)
 		begin
 			if(!or141)
 				flop25 <= 1;
@@ -561,7 +561,7 @@ module ay38500NTSC(
 	end
 	reg flop26 = 0;
 	always @(posedge superclock) begin
-		`RESTORE_OR(flop26)
+		`RESTORE_OR(flop26, state_load_flop26)
 		begin
 			if(!pinHitIn)
 				flop26 <= 0;
@@ -571,7 +571,7 @@ module ay38500NTSC(
 	end
 	reg flop27 = 0;
 	always @(posedge superclock) begin
-		`RESTORE_OR(flop27)
+		`RESTORE_OR(flop27, state_load_flop27)
 		begin
 			if(!or199)
 				flop27 <= 0;
@@ -581,7 +581,7 @@ module ay38500NTSC(
 	end
 	reg flop28 = 0;
 	always @(posedge superclock) begin
-		`RESTORE_OR(flop28)
+		`RESTORE_OR(flop28, state_load_flop28)
 		begin
 			if(!or124)
 				flop28 <= 0;
@@ -591,7 +591,7 @@ module ay38500NTSC(
 	end
 	reg flop29 = 0;
 	always @(posedge superclock) begin
-		`RESTORE_OR(flop29)
+		`RESTORE_OR(flop29, state_load_flop29)
 		begin
 			if(!or164)
 				flop29 <= 0;
@@ -601,7 +601,7 @@ module ay38500NTSC(
 	end
 	reg flop30 = 0;
 	always @(posedge superclock) begin
-		`RESTORE_OR(flop30)
+		`RESTORE_OR(flop30, state_load_flop30)
 		begin
 			if(!or199 | or205)
 				flop30 <= 0;
@@ -611,7 +611,7 @@ module ay38500NTSC(
 	end
 	reg flop31 = 0;
 	always @(posedge superclock) begin
-		`RESTORE_OR(flop31)
+		`RESTORE_OR(flop31, state_load_flop31)
 		begin
 			if(!or188)
 				flop31 <= 0;
@@ -621,7 +621,7 @@ module ay38500NTSC(
 	end
 	reg flop32 = 0;
 	always @(posedge superclock) begin
-		`RESTORE_OR(flop32)
+		`RESTORE_OR(flop32, state_load_flop32)
 		begin
 			if(!flop13 | !or155 | or144 | pulser1)
 				flop32 <= 0;
@@ -631,7 +631,7 @@ module ay38500NTSC(
 	end
 	reg flop33 = 0;
 	always @(posedge superclock) begin
-		`RESTORE_OR(flop33)
+		`RESTORE_OR(flop33, state_load_flop33)
 		begin
 			if(!or193 | !or200 | !or205)
 				flop33 <= 0;
@@ -641,7 +641,7 @@ module ay38500NTSC(
 	end
 	reg flop34 = 0;
 	always @(posedge superclock) begin
-		`RESTORE_OR(flop34)
+		`RESTORE_OR(flop34, state_load_flop34)
 		begin
 			if(!or181)
 				flop34 <= 0;
@@ -651,7 +651,7 @@ module ay38500NTSC(
 	end
 	reg flop35 = 0;
 	always @(posedge superclock) begin
-		`RESTORE_OR(flop35)
+		`RESTORE_OR(flop35, state_load_flop35)
 		begin
 			if(!or168)
 				flop35 <= 0;
