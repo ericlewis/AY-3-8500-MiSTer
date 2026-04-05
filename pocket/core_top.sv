@@ -166,10 +166,12 @@ reg savestate_load_req_toggle_74a = 0;
 reg savestate_load_req_meta_sys = 0, savestate_load_req_sys = 0, savestate_load_req_seen_sys = 0;
 reg savestate_load_done_toggle_sys = 0;
 reg savestate_load_done_meta_74a = 0, savestate_load_done_sys = 0, savestate_load_done_seen_74a = 0;
+reg [2:0] savestate_load_delay_sys = 0;
 
 reg apply_savestate_settings_74a = 0;
 reg state_load_sys = 0;
 reg chip_state_load_sys = 0;
+reg load_vid_toggle_sys = 0;
 
 wire [TOP_STATE_BITS-1:0] top_state_out = {
     7'd0,
@@ -216,6 +218,20 @@ assign {
     savestate_p1cap,
     savestate_p2cap
 } = top_state_in;
+
+wire [31:0] extra_state_in = savestate_wr_buf_sys[14];
+wire [31:0] extra_state_out = {3'd0, reset_cnt, paddle_old_hs, paddle_old_vs, vid_state_s1};
+wire [19:0] savestate_reset_cnt = extra_state_in[28:9];
+wire        savestate_paddle_old_hs = extra_state_in[8];
+wire        savestate_paddle_old_vs = extra_state_in[7];
+wire [6:0]  savestate_vid_state = extra_state_in[6:0];
+wire        savestate_hblank_d1 = savestate_vid_state[6];
+wire        savestate_hblank_d2 = savestate_vid_state[5];
+wire        savestate_vblank_d1 = savestate_vid_state[4];
+wire        savestate_vblank_d2 = savestate_vid_state[3];
+wire        savestate_vid_hs = savestate_vid_state[2];
+wire        savestate_vid_vs = savestate_vid_state[1];
+wire        savestate_vid_de = savestate_vid_state[0];
 
 wire [CHIP_STATE_BITS-1:0] chip_state_out;
 wire [159:0] chip_state_out_padded = {9'd0, chip_state_out};
@@ -330,7 +346,7 @@ reg [19:0] reset_cnt = 20'd200000;
 wire chip_reset = |reset_cnt | cont1_key[15]; // Start button = reset
 always @(posedge clk_sys) begin
     if (state_load_sys)
-        reset_cnt <= 0;
+        reset_cnt <= savestate_reset_cnt;
     else if (reset_cnt)
         reset_cnt <= reset_cnt - 1'd1;
 end
@@ -402,7 +418,12 @@ always @(posedge clk_sys) begin
     if (state_load_sys) begin
         state_load_sys <= 0;
         chip_state_load_sys <= 0;
-        savestate_load_done_toggle_sys <= ~savestate_load_done_toggle_sys;
+    end
+
+    if (savestate_load_delay_sys != 0) begin
+        savestate_load_delay_sys <= savestate_load_delay_sys - 1'd1;
+        if (savestate_load_delay_sys == 1)
+            savestate_load_done_toggle_sys <= ~savestate_load_done_toggle_sys;
     end
 
     if (savestate_save_req_sys != savestate_save_req_seen_sys) begin
@@ -415,7 +436,7 @@ always @(posedge clk_sys) begin
         savestate_rd_buf_sys[5] <= set_sys[5];
         {savestate_rd_buf_sys[6], savestate_rd_buf_sys[7], savestate_rd_buf_sys[8]} <= top_state_out;
         {savestate_rd_buf_sys[9], savestate_rd_buf_sys[10], savestate_rd_buf_sys[11], savestate_rd_buf_sys[12], savestate_rd_buf_sys[13]} <= chip_state_out_padded;
-        savestate_rd_buf_sys[14] <= 32'd0;
+        savestate_rd_buf_sys[14] <= extra_state_out;
         savestate_rd_buf_sys[15] <= 32'h41595353;
         savestate_save_delay_sys <= 3'd6;
     end else if (savestate_save_delay_sys != 0) begin
@@ -428,6 +449,8 @@ always @(posedge clk_sys) begin
         savestate_load_req_seen_sys <= savestate_load_req_sys;
         state_load_sys <= 1;
         chip_state_load_sys <= 1;
+        load_vid_toggle_sys <= ~load_vid_toggle_sys;
+        savestate_load_delay_sys <= 3'd4;
     end
 end
 
@@ -451,8 +474,8 @@ always @(posedge clk_sys) begin
         p2pos <= savestate_p2pos;
         p1cap <= savestate_p1cap;
         p2cap <= savestate_p2cap;
-        paddle_old_hs <= syncH;
-        paddle_old_vs <= syncV;
+        paddle_old_hs <= savestate_paddle_old_hs;
+        paddle_old_vs <= savestate_paddle_old_vs;
     end else begin
         paddle_old_hs <= syncH;
         paddle_old_vs <= syncV;
@@ -607,23 +630,53 @@ reg       hblank_d1, hblank_d2;
 reg       vblank_d1, vblank_d2;
 reg [7:0] vid_r, vid_g, vid_b;
 reg       vid_hs, vid_vs, vid_de;
+reg [6:0] vid_state_s0 = 0, vid_state_s1 = 0;
+reg       load_vid_meta = 0, load_vid_sync = 0, load_vid_prev = 0;
+
+always @(posedge clk_sys) begin
+    vid_state_s0 <= {hblank_d1, hblank_d2, vblank_d1, vblank_d2, vid_hs, vid_vs, vid_de};
+    vid_state_s1 <= vid_state_s0;
+end
 
 always @(posedge clk_vid) begin
-    hblank_d1 <= HBlank;
-    hblank_d2 <= hblank_d1;
-    vblank_d1 <= VBlank_r;
-    vblank_d2 <= vblank_d1;
-    vid_de <= ~hblank_d2 & ~vblank_d2;
-    vid_hs <= !syncH;
-    vid_vs <= !syncV;
-    if (~hblank_d2 & ~vblank_d2) begin
-        vid_r <= {colorOut[11:8], colorOut[11:8]};
-        vid_g <= {colorOut[7:4],  colorOut[7:4]};
-        vid_b <= {colorOut[3:0],  colorOut[3:0]};
+    load_vid_meta <= load_vid_toggle_sys;
+    load_vid_sync <= load_vid_meta;
+    load_vid_prev <= load_vid_sync;
+
+    if (load_vid_sync != load_vid_prev) begin
+        hblank_d1 <= savestate_hblank_d1;
+        hblank_d2 <= savestate_hblank_d2;
+        vblank_d1 <= savestate_vblank_d1;
+        vblank_d2 <= savestate_vblank_d2;
+        vid_hs <= savestate_vid_hs;
+        vid_vs <= savestate_vid_vs;
+        vid_de <= savestate_vid_de;
+        if (savestate_vid_de) begin
+            vid_r <= {savestate_colorOut[11:8], savestate_colorOut[11:8]};
+            vid_g <= {savestate_colorOut[7:4],  savestate_colorOut[7:4]};
+            vid_b <= {savestate_colorOut[3:0],  savestate_colorOut[3:0]};
+        end else begin
+            vid_r <= 0;
+            vid_g <= 0;
+            vid_b <= 0;
+        end
     end else begin
-        vid_r <= 0;
-        vid_g <= 0;
-        vid_b <= 0;
+        hblank_d1 <= HBlank;
+        hblank_d2 <= hblank_d1;
+        vblank_d1 <= VBlank_r;
+        vblank_d2 <= vblank_d1;
+        vid_de <= ~hblank_d2 & ~vblank_d2;
+        vid_hs <= !syncH;
+        vid_vs <= !syncV;
+        if (~hblank_d2 & ~vblank_d2) begin
+            vid_r <= {colorOut[11:8], colorOut[11:8]};
+            vid_g <= {colorOut[7:4],  colorOut[7:4]};
+            vid_b <= {colorOut[3:0],  colorOut[3:0]};
+        end else begin
+            vid_r <= 0;
+            vid_g <= 0;
+            vid_b <= 0;
+        end
     end
 end
 
