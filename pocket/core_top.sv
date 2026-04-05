@@ -68,10 +68,19 @@ assign sram_a=0; assign sram_dq={16{1'bZ}};
 assign sram_oe_n=1; assign sram_we_n=1; assign sram_ub_n=1; assign sram_lb_n=1;
 assign dbg_tx=1'bZ; assign user1=1'bZ; assign aux_scl=1'bZ; assign vpll_feed=1'bZ;
 
+localparam integer SAVESTATE_WORDS = 16;
+localparam [31:0] SAVESTATE_BASE  = 32'h2000_0000;
+localparam [31:0] SAVESTATE_BYTES = SAVESTATE_WORDS * 4;
+localparam integer TOP_STATE_BITS  = 96;
+localparam integer CHIP_STATE_BITS = 151;
+
+wire [31:0] savestate_rd_word;
+
 // ======== Bridge ========
 wire [31:0] cmd_bridge_rd_data;
 always @(*) begin
     casex(bridge_addr)
+    32'h20xxxxxx: bridge_rd_data <= savestate_rd_word;
     32'h50xxxxxx: bridge_rd_data <= settings[bridge_addr[4:2]];
     32'hF8xxxxxx: bridge_rd_data <= cmd_bridge_rd_data;
     default:      bridge_rd_data <= 0;
@@ -87,6 +96,20 @@ wire [31:0] dataslot_requestwrite_size, dataslot_update_size;
 wire [31:0] rtc_epoch_seconds, rtc_date_bcd, rtc_time_bcd;
 wire rtc_valid, osnotify_inmenu;
 wire savestate_start, savestate_load;
+wire savestate_supported = 1'b1;
+wire [31:0] savestate_addr = SAVESTATE_BASE;
+wire [31:0] savestate_size = SAVESTATE_BYTES;
+wire [31:0] savestate_maxloadsize = SAVESTATE_BYTES;
+reg  savestate_start_ack = 0;
+reg  savestate_start_busy = 0;
+reg  savestate_start_ok = 0;
+wire savestate_start_err = 1'b0;
+reg  savestate_load_ack = 0;
+reg  savestate_load_busy = 0;
+reg  savestate_load_ok = 0;
+wire savestate_load_err = 1'b0;
+reg  savestate_start_d = 0;
+reg  savestate_load_d = 0;
 reg target_dataslot_read=0, target_dataslot_write=0, target_dataslot_getfile=0, target_dataslot_openfile=0;
 wire target_dataslot_ack, target_dataslot_done;
 wire [2:0] target_dataslot_err;
@@ -109,9 +132,9 @@ core_bridge_cmd icb(
     .dataslot_update(dataslot_update), .dataslot_update_id(dataslot_update_id), .dataslot_update_size(dataslot_update_size),
     .dataslot_allcomplete(dataslot_allcomplete),
     .rtc_epoch_seconds(rtc_epoch_seconds), .rtc_date_bcd(rtc_date_bcd), .rtc_time_bcd(rtc_time_bcd), .rtc_valid(rtc_valid),
-    .savestate_supported(1'b0), .savestate_addr(0), .savestate_size(0), .savestate_maxloadsize(0),
-    .savestate_start(savestate_start), .savestate_start_ack(0), .savestate_start_busy(0), .savestate_start_ok(0), .savestate_start_err(0),
-    .savestate_load(savestate_load), .savestate_load_ack(0), .savestate_load_busy(0), .savestate_load_ok(0), .savestate_load_err(0),
+    .savestate_supported(savestate_supported), .savestate_addr(savestate_addr), .savestate_size(savestate_size), .savestate_maxloadsize(savestate_maxloadsize),
+    .savestate_start(savestate_start), .savestate_start_ack(savestate_start_ack), .savestate_start_busy(savestate_start_busy), .savestate_start_ok(savestate_start_ok), .savestate_start_err(savestate_start_err),
+    .savestate_load(savestate_load), .savestate_load_ack(savestate_load_ack), .savestate_load_busy(savestate_load_busy), .savestate_load_ok(savestate_load_ok), .savestate_load_err(savestate_load_err),
     .osnotify_inmenu(osnotify_inmenu),
     .target_dataslot_read(target_dataslot_read), .target_dataslot_write(target_dataslot_write),
     .target_dataslot_getfile(target_dataslot_getfile), .target_dataslot_openfile(target_dataslot_openfile),
@@ -122,10 +145,158 @@ core_bridge_cmd icb(
     .datatable_addr(datatable_addr), .datatable_wren(datatable_wren), .datatable_data(datatable_data), .datatable_q(datatable_q)
 );
 
-// No target commands needed
+assign datatable_addr = 10'd0;
+assign datatable_wren = 1'b0;
+assign datatable_data = 32'd0;
+
+reg  [31:0] savestate_wr_buf_74a [0:SAVESTATE_WORDS-1];
+reg  [31:0] savestate_rd_buf_sys [0:SAVESTATE_WORDS-1];
+reg  [31:0] savestate_rd_meta_74a [0:SAVESTATE_WORDS-1];
+reg  [31:0] savestate_rd_buf_74a [0:SAVESTATE_WORDS-1];
+reg  [31:0] savestate_wr_meta_sys [0:SAVESTATE_WORDS-1];
+reg  [31:0] savestate_wr_buf_sys [0:SAVESTATE_WORDS-1];
+
+reg savestate_save_req_toggle_74a = 0;
+reg savestate_save_req_meta_sys = 0, savestate_save_req_sys = 0, savestate_save_req_seen_sys = 0;
+reg savestate_save_done_toggle_sys = 0;
+reg savestate_save_done_meta_74a = 0, savestate_save_done_sys = 0, savestate_save_done_seen_74a = 0;
+reg [2:0] savestate_save_delay_sys = 0;
+
+reg savestate_load_req_toggle_74a = 0;
+reg savestate_load_req_meta_sys = 0, savestate_load_req_sys = 0, savestate_load_req_seen_sys = 0;
+reg savestate_load_done_toggle_sys = 0;
+reg savestate_load_done_meta_74a = 0, savestate_load_done_sys = 0, savestate_load_done_seen_74a = 0;
+
+reg apply_savestate_settings_74a = 0;
+reg state_load_sys = 0;
+reg chip_state_load_sys = 0;
+
+wire [TOP_STATE_BITS-1:0] top_state_out = {
+    7'd0,
+    gameSelect,
+    ce_2m_div,
+    ce_2m,
+    HBlank,
+    VBlank_r,
+    blank_hcnt,
+    blank_vcnt,
+    blank_old_hs,
+    blank_old_vs,
+    colorOut,
+    p1pos,
+    p2pos,
+    p1cap,
+    p2cap
+};
+
+wire [TOP_STATE_BITS-1:0] top_state_in = {savestate_wr_buf_sys[6], savestate_wr_buf_sys[7], savestate_wr_buf_sys[8]};
+wire [7:0] savestate_gameSelect;
+wire [5:0] savestate_ce_2m_div;
+wire savestate_ce_2m;
+wire savestate_HBlank, savestate_VBlank_r;
+wire [10:0] savestate_blank_hcnt, savestate_blank_vcnt;
+wire savestate_blank_old_hs, savestate_blank_old_vs;
+wire [11:0] savestate_colorOut;
+wire [6:0] savestate_top_pad;
+wire [8:0] savestate_p1pos, savestate_p2pos, savestate_p1cap, savestate_p2cap;
+assign {
+    savestate_top_pad,
+    savestate_gameSelect,
+    savestate_ce_2m_div,
+    savestate_ce_2m,
+    savestate_HBlank,
+    savestate_VBlank_r,
+    savestate_blank_hcnt,
+    savestate_blank_vcnt,
+    savestate_blank_old_hs,
+    savestate_blank_old_vs,
+    savestate_colorOut,
+    savestate_p1pos,
+    savestate_p2pos,
+    savestate_p1cap,
+    savestate_p2cap
+} = top_state_in;
+
+wire [CHIP_STATE_BITS-1:0] chip_state_out;
+wire [159:0] chip_state_out_padded = {9'd0, chip_state_out};
+wire [159:0] chip_state_in_padded = {
+    savestate_wr_buf_sys[9],
+    savestate_wr_buf_sys[10],
+    savestate_wr_buf_sys[11],
+    savestate_wr_buf_sys[12],
+    savestate_wr_buf_sys[13]
+};
+wire [CHIP_STATE_BITS-1:0] chip_state_in = chip_state_in_padded[CHIP_STATE_BITS-1:0];
+
+assign savestate_rd_word = (bridge_addr[5:2] < SAVESTATE_WORDS) ? savestate_rd_buf_74a[bridge_addr[5:2]] : 32'd0;
+
+integer ssi;
+initial begin
+    for (ssi = 0; ssi < SAVESTATE_WORDS; ssi = ssi + 1) begin
+        savestate_wr_buf_74a[ssi] = 32'd0;
+        savestate_rd_buf_sys[ssi] = 32'd0;
+        savestate_rd_meta_74a[ssi] = 32'd0;
+        savestate_rd_buf_74a[ssi] = 32'd0;
+        savestate_wr_meta_sys[ssi] = 32'd0;
+        savestate_wr_buf_sys[ssi] = 32'd0;
+    end
+end
+
 always @(posedge clk_74a) begin
+    integer i;
     target_dataslot_read <= 0; target_dataslot_write <= 0;
     target_dataslot_getfile <= 0; target_dataslot_openfile <= 0;
+    apply_savestate_settings_74a <= 0;
+    savestate_start_ack <= 0;
+    savestate_load_ack <= 0;
+    savestate_start_d <= savestate_start;
+    savestate_load_d <= savestate_load;
+    savestate_save_done_meta_74a <= savestate_save_done_toggle_sys;
+    savestate_save_done_sys <= savestate_save_done_meta_74a;
+    savestate_load_done_meta_74a <= savestate_load_done_toggle_sys;
+    savestate_load_done_sys <= savestate_load_done_meta_74a;
+
+    for (i = 0; i < SAVESTATE_WORDS; i = i + 1) begin
+        savestate_rd_meta_74a[i] <= savestate_rd_buf_sys[i];
+        savestate_rd_buf_74a[i] <= savestate_rd_meta_74a[i];
+    end
+
+    if (bridge_wr && bridge_addr[31:24] == SAVESTATE_BASE[31:24] && bridge_addr[5:2] < SAVESTATE_WORDS)
+        savestate_wr_buf_74a[bridge_addr[5:2]] <= bridge_wr_data;
+
+    if (savestate_start && !savestate_start_d) begin
+        savestate_start_ack <= 1;
+        savestate_start_ok <= 0;
+        savestate_start_busy <= 1;
+        savestate_save_req_toggle_74a <= ~savestate_save_req_toggle_74a;
+    end
+
+    if (savestate_load && !savestate_load_d) begin
+        savestate_load_ack <= 1;
+        savestate_load_ok <= 0;
+        savestate_load_busy <= 1;
+        apply_savestate_settings_74a <= 1;
+        savestate_load_req_toggle_74a <= ~savestate_load_req_toggle_74a;
+    end
+
+    if (savestate_save_done_sys != savestate_save_done_seen_74a) begin
+        savestate_save_done_seen_74a <= savestate_save_done_sys;
+        savestate_start_busy <= 0;
+        savestate_start_ok <= 1;
+    end
+
+    if (savestate_load_done_sys != savestate_load_done_seen_74a) begin
+        savestate_load_done_seen_74a <= savestate_load_done_sys;
+        savestate_load_busy <= 0;
+        savestate_load_ok <= 1;
+    end
+
+    if (!reset_n) begin
+        savestate_start_busy <= 0;
+        savestate_start_ok <= 0;
+        savestate_load_busy <= 0;
+        savestate_load_ok <= 0;
+    end
 end
 
 // ======== Interact → Settings ========
@@ -141,19 +312,28 @@ pll pll_inst(.refclk(clk_74a), .rst(1'b0),
     .outclk_0(clk_sys), .outclk_1(clk_vid), .outclk_2(clk_vid_90), .locked(pll_core_locked));
 
 // 2 MHz clock enable (48/24)
-reg ce_2m;
+reg [5:0] ce_2m_div = 0;
+reg ce_2m = 0;
 always @(posedge clk_sys) begin
-    reg [5:0] div;
-    div <= div + 1'd1;
-    if (div == 23) div <= 0;
-    ce_2m <= !div;
+    if (state_load_sys) begin
+        ce_2m_div <= savestate_ce_2m_div;
+        ce_2m <= savestate_ce_2m;
+    end else begin
+        ce_2m_div <= ce_2m_div + 1'd1;
+        if (ce_2m_div == 23) ce_2m_div <= 0;
+        ce_2m <= !ce_2m_div;
+    end
 end
 
 // ======== Reset ========
 reg [19:0] reset_cnt = 20'd200000;
 wire chip_reset = |reset_cnt | cont1_key[15]; // Start button = reset
-always @(posedge clk_sys)
-    if (reset_cnt) reset_cnt <= reset_cnt - 1'd1;
+always @(posedge clk_sys) begin
+    if (state_load_sys)
+        reset_cnt <= 0;
+    else if (reset_cnt)
+        reset_cnt <= reset_cnt - 1'd1;
+end
 
 // ======== Settings from interact registers ========
 // Settings register file — captures bridge writes at 0x50xxxxxx
@@ -162,8 +342,16 @@ integer si;
 initial for (si = 0; si < 8; si = si + 1) settings[si] = 0;
 
 always @(posedge clk_74a) begin
-    if (bridge_wr && bridge_addr[31:24] == 8'h50 && bridge_addr[4:2] < 8)
+    if (apply_savestate_settings_74a) begin
+        settings[0] <= savestate_wr_buf_74a[0];
+        settings[1] <= savestate_wr_buf_74a[1];
+        settings[2] <= savestate_wr_buf_74a[2];
+        settings[3] <= savestate_wr_buf_74a[3];
+        settings[4] <= savestate_wr_buf_74a[4];
+        settings[5] <= savestate_wr_buf_74a[5];
+    end else if (bridge_wr && bridge_addr[31:24] == 8'h50 && bridge_addr[4:2] < 8) begin
         settings[bridge_addr[4:2]] <= bridge_wr_data;
+    end
 end
 
 // Sync to clk_sys
@@ -171,9 +359,24 @@ reg [31:0] set_sys [0:7];
 reg [31:0] set_meta [0:7];
 integer sj;
 always @(posedge clk_sys) begin
-    for (sj = 0; sj < 8; sj = sj + 1) begin
-        set_meta[sj] <= settings[sj];
-        set_sys[sj]  <= set_meta[sj];
+    if (state_load_sys) begin
+        set_meta[0] <= savestate_wr_buf_sys[0];
+        set_meta[1] <= savestate_wr_buf_sys[1];
+        set_meta[2] <= savestate_wr_buf_sys[2];
+        set_meta[3] <= savestate_wr_buf_sys[3];
+        set_meta[4] <= savestate_wr_buf_sys[4];
+        set_meta[5] <= savestate_wr_buf_sys[5];
+        set_sys[0] <= savestate_wr_buf_sys[0];
+        set_sys[1] <= savestate_wr_buf_sys[1];
+        set_sys[2] <= savestate_wr_buf_sys[2];
+        set_sys[3] <= savestate_wr_buf_sys[3];
+        set_sys[4] <= savestate_wr_buf_sys[4];
+        set_sys[5] <= savestate_wr_buf_sys[5];
+    end else begin
+        for (sj = 0; sj < 8; sj = sj + 1) begin
+            set_meta[sj] <= settings[sj];
+            set_sys[sj]  <= set_meta[sj];
+        end
     end
 end
 
@@ -184,32 +387,89 @@ wire       ball_angle      = set_sys[3][0];    // 0=Angle1, 1=Angle2
 wire       ball_speed      = set_sys[4][0];    // 0=Slow, 1=Fast
 wire [2:0] color_palette   = set_sys[5][2:0];  // 0-7
 
+always @(posedge clk_sys) begin
+    integer i;
+    for (i = 0; i < SAVESTATE_WORDS; i = i + 1) begin
+        savestate_wr_meta_sys[i] <= savestate_wr_buf_74a[i];
+        savestate_wr_buf_sys[i] <= savestate_wr_meta_sys[i];
+    end
+
+    savestate_save_req_meta_sys <= savestate_save_req_toggle_74a;
+    savestate_save_req_sys <= savestate_save_req_meta_sys;
+    savestate_load_req_meta_sys <= savestate_load_req_toggle_74a;
+    savestate_load_req_sys <= savestate_load_req_meta_sys;
+
+    if (state_load_sys) begin
+        state_load_sys <= 0;
+        chip_state_load_sys <= 0;
+        savestate_load_done_toggle_sys <= ~savestate_load_done_toggle_sys;
+    end
+
+    if (savestate_save_req_sys != savestate_save_req_seen_sys) begin
+        savestate_save_req_seen_sys <= savestate_save_req_sys;
+        savestate_rd_buf_sys[0] <= set_sys[0];
+        savestate_rd_buf_sys[1] <= set_sys[1];
+        savestate_rd_buf_sys[2] <= set_sys[2];
+        savestate_rd_buf_sys[3] <= set_sys[3];
+        savestate_rd_buf_sys[4] <= set_sys[4];
+        savestate_rd_buf_sys[5] <= set_sys[5];
+        {savestate_rd_buf_sys[6], savestate_rd_buf_sys[7], savestate_rd_buf_sys[8]} <= top_state_out;
+        {savestate_rd_buf_sys[9], savestate_rd_buf_sys[10], savestate_rd_buf_sys[11], savestate_rd_buf_sys[12], savestate_rd_buf_sys[13]} <= chip_state_out_padded;
+        savestate_rd_buf_sys[14] <= 32'd0;
+        savestate_rd_buf_sys[15] <= 32'h41595353;
+        savestate_save_delay_sys <= 3'd6;
+    end else if (savestate_save_delay_sys != 0) begin
+        savestate_save_delay_sys <= savestate_save_delay_sys - 1'd1;
+        if (savestate_save_delay_sys == 1)
+            savestate_save_done_toggle_sys <= ~savestate_save_done_toggle_sys;
+    end
+
+    if (savestate_load_req_sys != savestate_load_req_seen_sys) begin
+        savestate_load_req_seen_sys <= savestate_load_req_sys;
+        state_load_sys <= 1;
+        chip_state_load_sys <= 1;
+    end
+end
+
 reg [7:0] gameSelect;
-always @(posedge clk_sys) gameSelect <= 8'd1 << game_select_val;
+always @(posedge clk_sys) begin
+    if (state_load_sys)
+        gameSelect <= savestate_gameSelect;
+    else
+        gameSelect <= 8'd1 << game_select_val;
+end
 
 // ======== Paddle Emulation ========
 wire [4:0] paddleMoveSpeed = ball_speed ? 5'd8 : 5'd5;
 reg [8:0] p1pos = 9'd128, p2pos = 9'd128;
 reg [8:0] p1cap = 0, p2cap = 0;
+reg paddle_old_hs = 0, paddle_old_vs = 0;
 
 always @(posedge clk_sys) begin
-    reg old_hs, old_vs;
-    old_hs <= syncH; old_vs <= syncV;
+    if (state_load_sys) begin
+        p1pos <= savestate_p1pos;
+        p2pos <= savestate_p2pos;
+        p1cap <= savestate_p1cap;
+        p2cap <= savestate_p2cap;
+        paddle_old_hs <= syncH;
+        paddle_old_vs <= syncV;
+    end else begin
+        paddle_old_hs <= syncH;
+        paddle_old_vs <= syncV;
 
-    if (syncV & !old_vs) begin
-        // Player 1 — d-pad
-        p1cap <= p1pos;
-        if (cont1_key[0]) p1pos <= (p1pos < paddleMoveSpeed) ? 9'd0 : p1pos - paddleMoveSpeed;
-        if (cont1_key[1]) p1pos <= (p1pos + paddleMoveSpeed > 255) ? 9'd255 : p1pos + paddleMoveSpeed;
+        if (syncV & !paddle_old_vs) begin
+            p1cap <= p1pos;
+            if (cont1_key[0]) p1pos <= (p1pos < paddleMoveSpeed) ? 9'd0 : p1pos - paddleMoveSpeed;
+            if (cont1_key[1]) p1pos <= (p1pos + paddleMoveSpeed > 255) ? 9'd255 : p1pos + paddleMoveSpeed;
 
-        // Player 2 — d-pad
-        p2cap <= p2pos;
-        if (cont2_key[0]) p2pos <= (p2pos < paddleMoveSpeed) ? 9'd0 : p2pos - paddleMoveSpeed;
-        if (cont2_key[1]) p2pos <= (p2pos + paddleMoveSpeed > 255) ? 9'd255 : p2pos + paddleMoveSpeed;
-    end
-    else if (syncH & !old_hs) begin
-        if (p1cap != 0) p1cap <= p1cap - 1'd1;
-        if (p2cap != 0) p2cap <= p2cap - 1'd1;
+            p2cap <= p2pos;
+            if (cont2_key[0]) p2pos <= (p2pos < paddleMoveSpeed) ? 9'd0 : p2pos - paddleMoveSpeed;
+            if (cont2_key[1]) p2pos <= (p2pos + paddleMoveSpeed > 255) ? 9'd255 : p2pos + paddleMoveSpeed;
+        end
+        else if (syncH & !paddle_old_hs) begin
+            if (p1cap != 0) p1cap <= p1cap - 1'd1;
+            if (p2cap != 0) p2cap <= p2cap - 1'd1;
+        end
     end
 end
 
@@ -240,25 +500,29 @@ ay38500NTSC the_chip (
     .pinHitIn    (pong_audio),
     .pinShotIn   (1'b1),
     .pinLPin     (p1cap == 0),
-    .pinRPin     (gameSelect[4] ? (p1cap == 0) : (p2cap == 0))
+    .pinRPin     (gameSelect[4] ? (p1cap == 0) : (p2cap == 0)),
+    .state_load  (chip_state_load_sys),
+    .state_in    (chip_state_in),
+    .state_out   (chip_state_out)
 );
 
 // ======== Video: Full Color Palette ========
 reg [11:0] colorOut;
 always @(posedge clk_sys) begin
-    if (ballOut) begin
+    if (state_load_sys) begin
+        colorOut <= savestate_colorOut;
+    end else if (ballOut) begin
         case (color_palette)
-            3'd0: colorOut <= 12'hFFF; // Mono
-            3'd1: colorOut <= 12'hFFF; // Greyscale
-            3'd2: colorOut <= 12'hF00; // RGB1
-            3'd3: colorOut <= 12'hFFF; // RGB2
-            3'd4: colorOut <= 12'h000; // Field
-            3'd5: colorOut <= 12'h000; // Ice
-            3'd6: colorOut <= 12'hFFF; // Christmas
-            3'd7: colorOut <= 12'hFFF; // Marksman
+            3'd0: colorOut <= 12'hFFF;
+            3'd1: colorOut <= 12'hFFF;
+            3'd2: colorOut <= 12'hF00;
+            3'd3: colorOut <= 12'hFFF;
+            3'd4: colorOut <= 12'h000;
+            3'd5: colorOut <= 12'h000;
+            3'd6: colorOut <= 12'hFFF;
+            3'd7: colorOut <= 12'hFFF;
         endcase
-    end
-    else if (lpOut) begin
+    end else if (lpOut) begin
         case (color_palette)
             3'd0: colorOut <= 12'hFFF;
             3'd1: colorOut <= 12'hFFF;
@@ -269,8 +533,7 @@ always @(posedge clk_sys) begin
             3'd6: colorOut <= 12'hF00;
             3'd7: colorOut <= 12'hFF0;
         endcase
-    end
-    else if (rpOut) begin
+    end else if (rpOut) begin
         case (color_palette)
             3'd0: colorOut <= 12'hFFF;
             3'd1: colorOut <= 12'h000;
@@ -281,8 +544,7 @@ always @(posedge clk_sys) begin
             3'd6: colorOut <= 12'h030;
             3'd7: colorOut <= 12'h000;
         endcase
-    end
-    else if (sfOut) begin
+    end else if (sfOut) begin
         case (color_palette)
             3'd0: colorOut <= 12'hFFF;
             3'd1: colorOut <= 12'hFFF;
@@ -293,8 +555,7 @@ always @(posedge clk_sys) begin
             3'd6: colorOut <= 12'hFFF;
             3'd7: colorOut <= 12'hFFF;
         endcase
-    end
-    else begin
+    end else begin
         case (color_palette)
             3'd0: colorOut <= 12'h000;
             3'd1: colorOut <= 12'h999;
@@ -310,22 +571,29 @@ end
 
 // ======== Blanking ========
 reg HBlank, VBlank_r;
+reg [10:0] blank_hcnt = 0, blank_vcnt = 0;
+reg blank_old_hs = 0, blank_old_vs = 0;
 always @(posedge clk_sys) begin
-    reg [10:0] hcnt, vcnt;
-    reg old_hs, old_vs;
-    if (ce_2m) begin
-        hcnt <= hcnt + 1'd1;
-        old_hs <= syncH;
-        if (old_hs & ~syncH) begin
-            hcnt <= 0;
-            vcnt <= vcnt + 1'd1;
-            old_vs <= syncV;
-            if (old_vs & ~syncV) vcnt <= 0;
+    if (state_load_sys) begin
+        HBlank <= savestate_HBlank;
+        VBlank_r <= savestate_VBlank_r;
+        blank_hcnt <= savestate_blank_hcnt;
+        blank_vcnt <= savestate_blank_vcnt;
+        blank_old_hs <= savestate_blank_old_hs;
+        blank_old_vs <= savestate_blank_old_vs;
+    end else if (ce_2m) begin
+        blank_hcnt <= blank_hcnt + 1'd1;
+        blank_old_hs <= syncH;
+        if (blank_old_hs & ~syncH) begin
+            blank_hcnt <= 0;
+            blank_vcnt <= blank_vcnt + 1'd1;
+            blank_old_vs <= syncV;
+            if (blank_old_vs & ~syncV) blank_vcnt <= 0;
         end
-        if (hcnt == 21)  HBlank <= 0;
-        if (hcnt == 100) HBlank <= 1;
-        if (vcnt == 34)  VBlank_r <= 0;
-        if (vcnt == 240) VBlank_r <= 1;
+        if (blank_hcnt == 21)  HBlank <= 0;
+        if (blank_hcnt == 100) HBlank <= 1;
+        if (blank_vcnt == 34)  VBlank_r <= 0;
+        if (blank_vcnt == 240) VBlank_r <= 1;
     end
 end
 

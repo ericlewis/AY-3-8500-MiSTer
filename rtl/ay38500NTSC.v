@@ -39,7 +39,10 @@ module ay38500NTSC(
 	input reset,
 	output syncH,//MC: split syncs were accessed
 	output syncV,
-	input superclock);
+	input superclock,
+	input state_load,
+	input [150:0] state_in,
+	output [150:0] state_out);
 
 	//wire pinLPin = counter3 > 50;
 	//wire pinRPin = counter3 > 70;
@@ -55,70 +58,346 @@ module ay38500NTSC(
 	assign pinRifle1_DWN = !or150;
 	assign pinTennis_DWN = !or211;
 	assign pinSFout = or212;
+`define RESTORE_OR(REG) if(state_load) REG <= state_load_``REG; else
+	wire state_load_counter5_jump;
+	wire state_load_counter5_delay;
+	wire [9:0] state_load_counter5;
+	wire state_load_counter4_jump;
+	wire state_load_counter4_delay;
+	wire [8:0] state_load_counter4;
+	wire state_load_c3_delay;
+	wire [8:0] state_load_counter3;
+	wire state_load_c2_delay;
+	wire [7:0] state_load_counter2;
+	wire state_load_c1_delay;
+	wire [3:0] state_load_counter1;
+	wire state_load_c0_delay;
+	wire [2:0] state_load_counter0;
+	wire state_load_rc10_delay;
+	wire [1:0] state_load_ripple_ctr10;
+	wire state_load_rc9_delay;
+	wire [1:0] state_load_ripple_ctr9;
+	wire state_load_rc8_delay;
+	wire [4:0] state_load_ripple_ctr8;
+	wire state_load_rc7_delay;
+	wire [4:0] state_load_ripple_ctr7;
+	wire state_load_rc6_delay;
+	wire [1:0] state_load_ripple_ctr6;
+	wire state_load_rc5_delay;
+	wire [1:0] state_load_ripple_ctr5;
+	wire state_load_rc4_delay;
+	wire [4:0] state_load_ripple_ctr4;
+	wire state_load_rc3_delay;
+	wire [1:0] state_load_ripple_ctr3;
+	wire state_load_rc2_delay;
+	wire [1:0] state_load_ripple_ctr2;
+	wire state_load_rc1_delay;
+	wire [4:0] state_load_ripple_ctr1;
+	wire state_load_rc0_delay;
+	wire [4:0] state_load_ripple_ctr0;
+	wire state_load_sr0_delay;
+	wire [3:0] state_load_shift_reg0_spot;
+	wire [5:0] state_load_shift_reg0;
+	wire state_load_or8_delay;
+	wire state_load_flop35;
+	wire state_load_flop34;
+	wire state_load_flop33;
+	wire state_load_flop32;
+	wire state_load_flop31;
+	wire state_load_flop30;
+	wire state_load_flop29;
+	wire state_load_flop28;
+	wire state_load_flop27;
+	wire state_load_flop26;
+	wire state_load_flop25;
+	wire state_load_flop24;
+	wire state_load_flop23;
+	wire state_load_flop22;
+	wire state_load_flop21;
+	wire state_load_flop20;
+	wire state_load_flop19;
+	wire state_load_flop18;
+	wire state_load_flop17;
+	wire state_load_flop16;
+	wire state_load_flop15;
+	wire state_load_flop14;
+	wire state_load_flop13;
+	wire state_load_flop12;
+	wire state_load_flop11;
+	wire state_load_flop10;
+	wire state_load_flop9;
+	wire state_load_flop8;
+	wire state_load_flop7;
+	wire state_load_flop6;
+	wire state_load_flop5;
+	wire state_load_flop4;
+	wire state_load_flop3;
+	wire state_load_flop2;
+	wire state_load_flop1;
+	wire state_load_flop0;
+	wire state_load_pulser1_delay;
+	wire state_load_pulser0_delay;
+	wire state_load_pulser1;
+	wire state_load_pulser0;
+	assign state_out = {
+		counter5_jump,
+		counter5_delay,
+		counter5,
+		counter4_jump,
+		counter4_delay,
+		counter4,
+		c3_delay,
+		counter3,
+		c2_delay,
+		counter2,
+		c1_delay,
+		counter1,
+		c0_delay,
+		counter0,
+		rc10_delay,
+		ripple_ctr10,
+		rc9_delay,
+		ripple_ctr9,
+		rc8_delay,
+		ripple_ctr8,
+		rc7_delay,
+		ripple_ctr7,
+		rc6_delay,
+		ripple_ctr6,
+		rc5_delay,
+		ripple_ctr5,
+		rc4_delay,
+		ripple_ctr4,
+		rc3_delay,
+		ripple_ctr3,
+		rc2_delay,
+		ripple_ctr2,
+		rc1_delay,
+		ripple_ctr1,
+		rc0_delay,
+		ripple_ctr0,
+		sr0_delay,
+		shift_reg0_spot,
+		shift_reg0,
+		or8_delay,
+		flop35,
+		flop34,
+		flop33,
+		flop32,
+		flop31,
+		flop30,
+		flop29,
+		flop28,
+		flop27,
+		flop26,
+		flop25,
+		flop24,
+		flop23,
+		flop22,
+		flop21,
+		flop20,
+		flop19,
+		flop18,
+		flop17,
+		flop16,
+		flop15,
+		flop14,
+		flop13,
+		flop12,
+		flop11,
+		flop10,
+		flop9,
+		flop8,
+		flop7,
+		flop6,
+		flop5,
+		flop4,
+		flop3,
+		flop2,
+		flop1,
+		flop0,
+		pulser1_delay,
+		pulser0_delay,
+		pulser1,
+		pulser0
+	};
+	assign {
+		state_load_counter5_jump,
+		state_load_counter5_delay,
+		state_load_counter5,
+		state_load_counter4_jump,
+		state_load_counter4_delay,
+		state_load_counter4,
+		state_load_c3_delay,
+		state_load_counter3,
+		state_load_c2_delay,
+		state_load_counter2,
+		state_load_c1_delay,
+		state_load_counter1,
+		state_load_c0_delay,
+		state_load_counter0,
+		state_load_rc10_delay,
+		state_load_ripple_ctr10,
+		state_load_rc9_delay,
+		state_load_ripple_ctr9,
+		state_load_rc8_delay,
+		state_load_ripple_ctr8,
+		state_load_rc7_delay,
+		state_load_ripple_ctr7,
+		state_load_rc6_delay,
+		state_load_ripple_ctr6,
+		state_load_rc5_delay,
+		state_load_ripple_ctr5,
+		state_load_rc4_delay,
+		state_load_ripple_ctr4,
+		state_load_rc3_delay,
+		state_load_ripple_ctr3,
+		state_load_rc2_delay,
+		state_load_ripple_ctr2,
+		state_load_rc1_delay,
+		state_load_ripple_ctr1,
+		state_load_rc0_delay,
+		state_load_ripple_ctr0,
+		state_load_sr0_delay,
+		state_load_shift_reg0_spot,
+		state_load_shift_reg0,
+		state_load_or8_delay,
+		state_load_flop35,
+		state_load_flop34,
+		state_load_flop33,
+		state_load_flop32,
+		state_load_flop31,
+		state_load_flop30,
+		state_load_flop29,
+		state_load_flop28,
+		state_load_flop27,
+		state_load_flop26,
+		state_load_flop25,
+		state_load_flop24,
+		state_load_flop23,
+		state_load_flop22,
+		state_load_flop21,
+		state_load_flop20,
+		state_load_flop19,
+		state_load_flop18,
+		state_load_flop17,
+		state_load_flop16,
+		state_load_flop15,
+		state_load_flop14,
+		state_load_flop13,
+		state_load_flop12,
+		state_load_flop11,
+		state_load_flop10,
+		state_load_flop9,
+		state_load_flop8,
+		state_load_flop7,
+		state_load_flop6,
+		state_load_flop5,
+		state_load_flop4,
+		state_load_flop3,
+		state_load_flop2,
+		state_load_flop1,
+		state_load_flop0,
+		state_load_pulser1_delay,
+		state_load_pulser0_delay,
+		state_load_pulser1,
+		state_load_pulser0
+	} = state_in;
 	reg pulser0 = 0;//flop6;
 	reg pulser1 = 0;//(!or170 | pulser1_delay);
 	reg pulser0_delay = 0;
 	reg pulser1_delay = 0;
 	//MC: Pulsers always added manually
 	always @(posedge superclock) begin
-		pulser0_delay <= flop6;
-		pulser0 <= flop6 & !pulser0_delay;
-		pulser1_delay <= or170;
-		pulser1 <= or170 & !pulser1_delay;//was negedge
+		if(state_load) begin
+			pulser0 <= state_load_pulser0;
+			pulser1 <= state_load_pulser1;
+			pulser0_delay <= state_load_pulser0_delay;
+			pulser1_delay <= state_load_pulser1_delay;
+		end else begin
+			pulser0_delay <= flop6;
+			pulser0 <= flop6 & !pulser0_delay;
+			pulser1_delay <= or170;
+			pulser1 <= or170 & !pulser1_delay;//was negedge
+		end
 	end
 	//MC: flop0 was tweaked
 	reg flop0 = 0;
 	always @(posedge superclock) begin
-		flop0 <= flop2;
+		`RESTORE_OR(flop0)
+		begin
+			flop0 <= flop2;
+		end
 	end
 	reg flop1 = 0;
 	always @(posedge superclock) begin
-		if(!or213 | counter5_2268)
-			flop1 <= 0;
-		else if(!or3 | !or6)
-			flop1 <= 1;
+		`RESTORE_OR(flop1)
+		begin
+			if(!or213 | counter5_2268)
+				flop1 <= 0;
+			else if(!or3 | !or6)
+				flop1 <= 1;
+		end
 	end
 	reg flop2 = 0;
 	always @(posedge superclock) begin
-		if(!or213 | counter4_2130)
-			flop2 <= 0;
-		else if(!or18 | !or19)
-			flop2 <= 1;
+		`RESTORE_OR(flop2)
+		begin
+			if(!or213 | counter4_2130)
+				flop2 <= 0;
+			else if(!or18 | !or19)
+				flop2 <= 1;
+		end
 	end
 	reg flop3 = 0;//MC: set/reset priority have been reversed + reset added to flop3_set's OR
 	always @(posedge superclock) begin
-		if(!pinManualServe)// | reset
-			flop3 <= 0;
-		else if(!or4)
-			flop3 <= 1;
+		`RESTORE_OR(flop3)
+		begin
+			if(!pinManualServe)// | reset
+				flop3 <= 0;
+			else if(!or4)
+				flop3 <= 1;
+		end
 	end
 	reg flop4 = 0;
 	always @(posedge superclock) begin
-		if(!or16 | or24 | or27 | !or213)
-			flop4 <= 0;
-		else if(!or15 | or23 | or22)
-			flop4 <= 1;
+		`RESTORE_OR(flop4)
+		begin
+			if(!or16 | or24 | or27 | !or213)
+				flop4 <= 0;
+			else if(!or15 | or23 | or22)
+				flop4 <= 1;
+		end
 	end
 	reg flop5 = 0;
 	always @(posedge superclock) begin
-		if(or27 | or22)
-			flop5 <= 0;
-		else if(or24 | or23 | !or213)
-			flop5 <= 1;
+		`RESTORE_OR(flop5)
+		begin
+			if(or27 | or22)
+				flop5 <= 0;
+			else if(or24 | or23 | !or213)
+				flop5 <= 1;
+		end
 	end
 	reg flop6 = 0;
 	always @(posedge superclock) begin
-		if(!reset | !or88)
-			flop6 <= 0;
-		else if(!or86)
-			flop6 <= 1;
+		`RESTORE_OR(flop6)
+		begin
+			if(!reset | !or88)
+				flop6 <= 0;
+			else if(!or86)
+				flop6 <= 1;
+		end
 	end
 	reg flop7 = 0;
 	always @(posedge superclock) begin
-		if(!reset | !or63)
-			flop7 <= 0;
-		else if(!or74)
-			flop7 <= 1;
+		`RESTORE_OR(flop7)
+		begin
+			if(!reset | !or63)
+				flop7 <= 0;
+			else if(!or74)
+				flop7 <= 1;
+		end
 	end
 	reg flop8 = 0;
 	reg flop9 = 0;
@@ -126,179 +405,259 @@ module ay38500NTSC(
 	reg flop11 = 0;
 	reg or8_delay = 0;
 	always @(posedge superclock) begin
-		or8_delay <= or8;
-		if(!or8 & or8_delay) begin
-			flop8 <= or55;
-			flop9 <= !or49;
-			flop10 <= or66;
-			flop11 <= !or51;
+		if(state_load) begin
+			flop8 <= state_load_flop8;
+			flop9 <= state_load_flop9;
+			flop10 <= state_load_flop10;
+			flop11 <= state_load_flop11;
+			or8_delay <= state_load_or8_delay;
+		end else begin
+			or8_delay <= or8;
+			if(!or8 & or8_delay) begin
+				flop8 <= or55;
+				flop9 <= !or49;
+				flop10 <= or66;
+				flop11 <= !or51;
+			end
 		end
 	end
 	reg flop12 = 0;
 	always @(posedge superclock) begin
-		if(!or92)
-			flop12 <= 0;
-		else if(!or90)
-			flop12 <= 1;
+		`RESTORE_OR(flop12)
+		begin
+			if(!or92)
+				flop12 <= 0;
+			else if(!or90)
+				flop12 <= 1;
+		end
 	end
 	reg flop13 = 0;
 	always @(posedge superclock) begin
-		if(!or169)
-			flop13 <= 0;
-		else if(!flop26 | !and18)
-			flop13 <= 1;
+		`RESTORE_OR(flop13)
+		begin
+			if(!or169)
+				flop13 <= 0;
+			else if(!flop26 | !and18)
+				flop13 <= 1;
+		end
 	end
 	reg flop14 = 0;
 	always @(posedge superclock) begin
-		if(pulser1)
-			flop14 <= 0;
-		else if(!and18)
-			flop14 <= 1;
+		`RESTORE_OR(flop14)
+		begin
+			if(pulser1)
+				flop14 <= 0;
+			else if(!and18)
+				flop14 <= 1;
+		end
 	end
 	reg flop15 = 0;
 	always @(posedge superclock) begin
-		if(!or135)
-			flop15 <= 0;
-		else if(!or136)
-			flop15 <= 1;
+		`RESTORE_OR(flop15)
+		begin
+			if(!or135)
+				flop15 <= 0;
+			else if(!or136)
+				flop15 <= 1;
+		end
 	end
 	reg flop16 = 0;
 	always @(posedge superclock) begin
-		if(or144)
-			flop16 <= 0;
-		else if(!and18)
-			flop16 <= 1;
+		`RESTORE_OR(flop16)
+		begin
+			if(or144)
+				flop16 <= 0;
+			else if(!and18)
+				flop16 <= 1;
+		end
 	end
 	reg flop17 = 0;
 	always @(posedge superclock) begin
-		if(or149)
-			flop17 <= 0;
-		else if(or127 | !or153 | !or213)
-			flop17 <= 1;
+		`RESTORE_OR(flop17)
+		begin
+			if(or149)
+				flop17 <= 0;
+			else if(or127 | !or153 | !or213)
+				flop17 <= 1;
+		end
 	end
 	reg flop18 = 0;
 	always @(posedge superclock) begin
-		if(!reset)
-			flop18 <= 0;
-		else if(!or193 | !or200)
-			flop18 <= 1;
+		`RESTORE_OR(flop18)
+		begin
+			if(!reset)
+				flop18 <= 0;
+			else if(!or193 | !or200)
+				flop18 <= 1;
+		end
 	end
 	reg flop19 = 0;
 	always @(posedge superclock) begin
-		if(!or155)
-			flop19 <= 0;
-		else if(!and18)
-			flop19 <= 1;
+		`RESTORE_OR(flop19)
+		begin
+			if(!or155)
+				flop19 <= 0;
+			else if(!and18)
+				flop19 <= 1;
+		end
 	end
 	reg flop20 = 0;
 	always @(posedge superclock) begin
-		if(!or143)
-			flop20 <= 0;
-		else if(!or142)
-			flop20 <= 1;
+		`RESTORE_OR(flop20)
+		begin
+			if(!or143)
+				flop20 <= 0;
+			else if(!or142)
+				flop20 <= 1;
+		end
 	end
 	reg flop21 = 0;
 	always @(posedge superclock) begin
-		if(or146)
-			flop21 <= 0;
-		else if(!or138)
-			flop21 <= 1;
+		`RESTORE_OR(flop21)
+		begin
+			if(or146)
+				flop21 <= 0;
+			else if(!or138)
+				flop21 <= 1;
+		end
 	end
 	reg flop22 = 0;
 	always @(posedge superclock) begin
-		if(or152)
-			flop22 <= flop21;
+		`RESTORE_OR(flop22)
+		begin
+			if(or152)
+				flop22 <= flop21;
+		end
 	end
 	reg flop23 = 0;
 	always @(posedge superclock) begin
-		if(!or70)
-			flop23 <= 0;
-		else if(!or68)
-			flop23 <= 1;
+		`RESTORE_OR(flop23)
+		begin
+			if(!or70)
+				flop23 <= 0;
+			else if(!or68)
+				flop23 <= 1;
+		end
 	end
 	reg flop24 = 0;//MC: Set/Reset priority has been swapped
 	always @(posedge superclock) begin
-		if(flop25)
-			flop24 <= 1;
-		else if(!ripple_ctr9_2)
-			flop24 <= 0;
+		`RESTORE_OR(flop24)
+		begin
+			if(flop25)
+				flop24 <= 1;
+			else if(!ripple_ctr9_2)
+				flop24 <= 0;
+		end
 	end
 	reg flop25 = 0;//MC: Set/Reset priority has been swapped
 	always @(posedge superclock) begin
-		if(!or141)
-			flop25 <= 1;
-		else if(!ripple_ctr9_2 | flop24)
-			flop25 <= 0;
+		`RESTORE_OR(flop25)
+		begin
+			if(!or141)
+				flop25 <= 1;
+			else if(!ripple_ctr9_2 | flop24)
+				flop25 <= 0;
+		end
 	end
 	reg flop26 = 0;
 	always @(posedge superclock) begin
-		if(!pinHitIn)
-			flop26 <= 0;
-		else if(!and18)
-			flop26 <= 1;
+		`RESTORE_OR(flop26)
+		begin
+			if(!pinHitIn)
+				flop26 <= 0;
+			else if(!and18)
+				flop26 <= 1;
+		end
 	end
 	reg flop27 = 0;
 	always @(posedge superclock) begin
-		if(!or199)
-			flop27 <= 0;
-		else if(!or166)
-			flop27 <= 1;
+		`RESTORE_OR(flop27)
+		begin
+			if(!or199)
+				flop27 <= 0;
+			else if(!or166)
+				flop27 <= 1;
+		end
 	end
 	reg flop28 = 0;
 	always @(posedge superclock) begin
-		if(!or124)
-			flop28 <= 0;
-		else if(!or70)
-			flop28 <= 1;
+		`RESTORE_OR(flop28)
+		begin
+			if(!or124)
+				flop28 <= 0;
+			else if(!or70)
+				flop28 <= 1;
+		end
 	end
 	reg flop29 = 0;
 	always @(posedge superclock) begin
-		if(!or164)
-			flop29 <= 0;
-		else if(!or199)
-			flop29 <= 1;
+		`RESTORE_OR(flop29)
+		begin
+			if(!or164)
+				flop29 <= 0;
+			else if(!or199)
+				flop29 <= 1;
+		end
 	end
 	reg flop30 = 0;
 	always @(posedge superclock) begin
-		if(!or199 | or205)
-			flop30 <= 0;
-		else if(!reset)
-			flop30 <= 1;
+		`RESTORE_OR(flop30)
+		begin
+			if(!or199 | or205)
+				flop30 <= 0;
+			else if(!reset)
+				flop30 <= 1;
+		end
 	end
 	reg flop31 = 0;
 	always @(posedge superclock) begin
-		if(!or188)
-			flop31 <= 0;
-		else if(!and18)
-			flop31 <= 1;
+		`RESTORE_OR(flop31)
+		begin
+			if(!or188)
+				flop31 <= 0;
+			else if(!and18)
+				flop31 <= 1;
+		end
 	end
 	reg flop32 = 0;
 	always @(posedge superclock) begin
-		if(!flop13 | !or155 | or144 | pulser1)
-			flop32 <= 0;
-		else if(!and18)
-			flop32 <= 1;
+		`RESTORE_OR(flop32)
+		begin
+			if(!flop13 | !or155 | or144 | pulser1)
+				flop32 <= 0;
+			else if(!and18)
+				flop32 <= 1;
+		end
 	end
 	reg flop33 = 0;
 	always @(posedge superclock) begin
-		if(!or193 | !or200 | !or205)
-			flop33 <= 0;
-		else if(!or210)
-			flop33 <= 1;
+		`RESTORE_OR(flop33)
+		begin
+			if(!or193 | !or200 | !or205)
+				flop33 <= 0;
+			else if(!or210)
+				flop33 <= 1;
+		end
 	end
 	reg flop34 = 0;
 	always @(posedge superclock) begin
-		if(!or181)
-			flop34 <= 0;
-		else if(!or177)
-			flop34 <= 1;
+		`RESTORE_OR(flop34)
+		begin
+			if(!or181)
+				flop34 <= 0;
+			else if(!or177)
+				flop34 <= 1;
+		end
 	end
 	reg flop35 = 0;
 	always @(posedge superclock) begin
-		if(!or168)
-			flop35 <= 0;
-		else if(!or178)
-			flop35 <= 1;
+		`RESTORE_OR(flop35)
+		begin
+			if(!or168)
+				flop35 <= 0;
+			else if(!or178)
+				flop35 <= 1;
+		end
 	end
 	wire and0 = !or26 & !or147;
 	wire and1 = !or29 & or118;
@@ -540,19 +899,25 @@ module ay38500NTSC(
 	reg sr0_delay = 0;
 	wire shift_reg0_104 = !shift_reg0[shift_reg0_spot] | !(counter2!=29 & counter2!=38);//Last two added as temporary patch to fix score width issue
 	always @(posedge superclock) begin
-		sr0_delay <= or145;
-		if(!flop24) begin
-			shift_reg0_spot <= 5;
-			shift_reg0[0:0] <= 0;
-			shift_reg0[1:1] <= !or115;
-			shift_reg0[2:2] <= !or116;
-			shift_reg0[3:3] <= !or114;
-			shift_reg0[4:4] <= 0;
-			shift_reg0[5:5] <= !or113;
-		end
-		else if(!or145 & sr0_delay) begin
-			if(shift_reg0_spot!=0) begin
-				shift_reg0_spot <= shift_reg0_spot - 1'd1;
+		if(state_load) begin
+			shift_reg0 <= state_load_shift_reg0;
+			shift_reg0_spot <= state_load_shift_reg0_spot;
+			sr0_delay <= state_load_sr0_delay;
+		end else begin
+			sr0_delay <= or145;
+			if(!flop24) begin
+				shift_reg0_spot <= 5;
+				shift_reg0[0:0] <= 0;
+				shift_reg0[1:1] <= !or115;
+				shift_reg0[2:2] <= !or116;
+				shift_reg0[3:3] <= !or114;
+				shift_reg0[4:4] <= 0;
+				shift_reg0[5:5] <= !or113;
+			end
+			else if(!or145 & sr0_delay) begin
+				if(shift_reg0_spot!=0) begin
+					shift_reg0_spot <= shift_reg0_spot - 1'd1;
+				end
 			end
 		end
 	end
@@ -564,11 +929,16 @@ module ay38500NTSC(
 	wire ripple_ctr0_4 = !ripple_ctr0[2:2];
 	wire ripple_ctr0_5 = !ripple_ctr0[3:3];
 	always @(posedge superclock) begin
-		rc0_delay <= or192;
-		if(!reset)
-			ripple_ctr0 <= 0;
-		else if(or192 & !rc0_delay)
-			ripple_ctr0 <= ripple_ctr0 + 1'd1;
+		if(state_load) begin
+			ripple_ctr0 <= state_load_ripple_ctr0;
+			rc0_delay <= state_load_rc0_delay;
+		end else begin
+			rc0_delay <= or192;
+			if(!reset)
+				ripple_ctr0 <= 0;
+			else if(or192 & !rc0_delay)
+				ripple_ctr0 <= ripple_ctr0 + 1'd1;
+		end
 	end
 
 	reg [4:0] ripple_ctr1 = 0;
@@ -578,33 +948,48 @@ module ay38500NTSC(
 	wire ripple_ctr1_4 = !ripple_ctr1[2:2];
 	wire ripple_ctr1_5 = !ripple_ctr1[3:3];
 	always @(posedge superclock) begin
-		rc1_delay <= or183;
-		if(!reset)
-			ripple_ctr1 <= 0;
-		else if(or183 & !rc1_delay)
-			ripple_ctr1 <= ripple_ctr1 + 1'd1;
+		if(state_load) begin
+			ripple_ctr1 <= state_load_ripple_ctr1;
+			rc1_delay <= state_load_rc1_delay;
+		end else begin
+			rc1_delay <= or183;
+			if(!reset)
+				ripple_ctr1 <= 0;
+			else if(or183 & !rc1_delay)
+				ripple_ctr1 <= ripple_ctr1 + 1'd1;
+		end
 	end
 
 	reg [1:0] ripple_ctr2 = 0;
 	reg rc2_delay = 0;
 	wire ripple_ctr2_2 = !ripple_ctr2[0:0];
 	always @(posedge superclock) begin
-		rc2_delay <= ripple_ctr10_2;
-		if(!or213)
-			ripple_ctr2 <= 0;
-		else if(!ripple_ctr10_2 & rc2_delay)
-			ripple_ctr2 <= ripple_ctr2 + 1'd1;
+		if(state_load) begin
+			ripple_ctr2 <= state_load_ripple_ctr2;
+			rc2_delay <= state_load_rc2_delay;
+		end else begin
+			rc2_delay <= ripple_ctr10_2;
+			if(!or213)
+				ripple_ctr2 <= 0;
+			else if(!ripple_ctr10_2 & rc2_delay)
+				ripple_ctr2 <= ripple_ctr2 + 1'd1;
+		end
 	end
 
 	reg [1:0] ripple_ctr3 = 0;
 	reg rc3_delay = 0;
 	wire ripple_ctr3_2 = !ripple_ctr3[0:0];
 	always @(posedge superclock) begin
-		rc3_delay <= ripple_ctr2_2;
-		if(!or213)
-			ripple_ctr3 <= 0;
-		else if(!ripple_ctr2_2 & rc3_delay)
-			ripple_ctr3 <= ripple_ctr3 + 1'd1;
+		if(state_load) begin
+			ripple_ctr3 <= state_load_ripple_ctr3;
+			rc3_delay <= state_load_rc3_delay;
+		end else begin
+			rc3_delay <= ripple_ctr2_2;
+			if(!or213)
+				ripple_ctr3 <= 0;
+			else if(!ripple_ctr2_2 & rc3_delay)
+				ripple_ctr3 <= ripple_ctr3 + 1'd1;
+		end
 	end
 
 	reg [4:0] ripple_ctr4 = 0;
@@ -614,33 +999,48 @@ module ay38500NTSC(
 	wire ripple_ctr4_4 = !ripple_ctr4[2:2];
 	wire ripple_ctr4_5 = !ripple_ctr4[3:3];
 	always @(posedge superclock) begin
-		rc4_delay <= or188;
-		if(flop31)
-			ripple_ctr4 <= 0;
-		else if(!or188 & rc4_delay)
-			ripple_ctr4 <= ripple_ctr4 + 1'd1;
+		if(state_load) begin
+			ripple_ctr4 <= state_load_ripple_ctr4;
+			rc4_delay <= state_load_rc4_delay;
+		end else begin
+			rc4_delay <= or188;
+			if(flop31)
+				ripple_ctr4 <= 0;
+			else if(!or188 & rc4_delay)
+				ripple_ctr4 <= ripple_ctr4 + 1'd1;
+		end
 	end
 
 	reg [1:0] ripple_ctr5 = 0;
 	reg rc5_delay = 0;
 	wire ripple_ctr5_2 = !ripple_ctr5[0:0];
 	always @(posedge superclock) begin
-		rc5_delay <= ripple_ctr3_2;		
-		if(!reset)
-			ripple_ctr5 <= 0;
-		else if(!ripple_ctr3_2 & rc5_delay)
-			ripple_ctr5 <= ripple_ctr5 + 1'd1;
+		if(state_load) begin
+			ripple_ctr5 <= state_load_ripple_ctr5;
+			rc5_delay <= state_load_rc5_delay;
+		end else begin
+			rc5_delay <= ripple_ctr3_2;		
+			if(!reset)
+				ripple_ctr5 <= 0;
+			else if(!ripple_ctr3_2 & rc5_delay)
+				ripple_ctr5 <= ripple_ctr5 + 1'd1;
+		end
 	end
 
 	reg [1:0] ripple_ctr6 = 0;
 	reg rc6_delay = 0;
 	wire ripple_ctr6_2 = !ripple_ctr6[0:0];
 	always @(posedge superclock) begin
-		rc6_delay <= ripple_ctr5_2;
-		if(!reset)
-			ripple_ctr6 <= 0;
-		else if(!ripple_ctr5_2 & rc6_delay)
-			ripple_ctr6 <= ripple_ctr6 + 1'd1;
+		if(state_load) begin
+			ripple_ctr6 <= state_load_ripple_ctr6;
+			rc6_delay <= state_load_rc6_delay;
+		end else begin
+			rc6_delay <= ripple_ctr5_2;
+			if(!reset)
+				ripple_ctr6 <= 0;
+			else if(!ripple_ctr5_2 & rc6_delay)
+				ripple_ctr6 <= ripple_ctr6 + 1'd1;
+		end
 	end
 
 	reg [4:0] ripple_ctr7 = 0;
@@ -650,11 +1050,16 @@ module ay38500NTSC(
 	wire ripple_ctr7_4 = ripple_ctr7[2:2];
 	wire ripple_ctr7_5 = ripple_ctr7[3:3];
 	always @(posedge superclock) begin
-		rc7_delay <= or21;
-		if(or14)
-			ripple_ctr7 <= 0;
-		else if(!or21 & rc7_delay)
-			ripple_ctr7 <= ripple_ctr7 + 1'd1;
+		if(state_load) begin
+			ripple_ctr7 <= state_load_ripple_ctr7;
+			rc7_delay <= state_load_rc7_delay;
+		end else begin
+			rc7_delay <= or21;
+			if(or14)
+				ripple_ctr7 <= 0;
+			else if(!or21 & rc7_delay)
+				ripple_ctr7 <= ripple_ctr7 + 1'd1;
+		end
 	end
 
 	reg [4:0] ripple_ctr8 = 0;
@@ -664,33 +1069,48 @@ module ay38500NTSC(
 	wire ripple_ctr8_4 = ripple_ctr8[2:2];
 	wire ripple_ctr8_5 = ripple_ctr8[3:3];
 	always @(posedge superclock) begin
-		rc8_delay <= or45;
-		if(or48)
-			ripple_ctr8 <= 0;
-		else if(!or45 & rc8_delay)
-			ripple_ctr8 <= ripple_ctr8 + 1'd1;
+		if(state_load) begin
+			ripple_ctr8 <= state_load_ripple_ctr8;
+			rc8_delay <= state_load_rc8_delay;
+		end else begin
+			rc8_delay <= or45;
+			if(or48)
+				ripple_ctr8 <= 0;
+			else if(!or45 & rc8_delay)
+				ripple_ctr8 <= ripple_ctr8 + 1'd1;
+		end
 	end
 
 	reg [1:0] ripple_ctr9 = 0;
 	reg rc9_delay = 0;
 	wire ripple_ctr9_2 = !ripple_ctr9[0:0];
 	always @(posedge superclock) begin
-		rc9_delay <= clk;
-		if(!or213)
-			ripple_ctr9 <= 0;
-		else if(!clk & rc9_delay)
-			ripple_ctr9 <= ripple_ctr9 + 1'd1;
+		if(state_load) begin
+			ripple_ctr9 <= state_load_ripple_ctr9;
+			rc9_delay <= state_load_rc9_delay;
+		end else begin
+			rc9_delay <= clk;
+			if(!or213)
+				ripple_ctr9 <= 0;
+			else if(!clk & rc9_delay)
+				ripple_ctr9 <= ripple_ctr9 + 1'd1;
+		end
 	end
 
 	reg [1:0] ripple_ctr10 = 0;
 	reg rc10_delay = 0;
 	wire ripple_ctr10_2 = !ripple_ctr10[0:0];
 	always @(posedge superclock) begin
-		rc10_delay <= flop7;
-		if(!or213)
-			ripple_ctr10 <= 0;
-		else if(flop7 & !rc10_delay)
-			ripple_ctr10 <= ripple_ctr10 + 1'd1;
+		if(state_load) begin
+			ripple_ctr10 <= state_load_ripple_ctr10;
+			rc10_delay <= state_load_rc10_delay;
+		end else begin
+			rc10_delay <= flop7;
+			if(!or213)
+				ripple_ctr10 <= 0;
+			else if(flop7 & !rc10_delay)
+				ripple_ctr10 <= ripple_ctr10 + 1'd1;
+		end
 	end
 
 	//MC: Add flop12 reset
@@ -698,14 +1118,19 @@ module ay38500NTSC(
 	reg c0_delay = 0;
 	wire counter0_2003 = (counter0==3);
 	always @(posedge superclock) begin
-		c0_delay <= flop7;
-		if(flop12)
-			counter0 <= 0;		
-		else if(!flop7 & c0_delay) begin
-			if(counter0==3)//this was 6
-				counter0 <= 0;
-			else
-				counter0 <= counter0 + 1'd1;
+		if(state_load) begin
+			counter0 <= state_load_counter0;
+			c0_delay <= state_load_c0_delay;
+		end else begin
+			c0_delay <= flop7;
+			if(flop12)
+				counter0 <= 0;		
+			else if(!flop7 & c0_delay) begin
+				if(counter0==3)
+					counter0 <= 0;
+				else
+					counter0 <= counter0 + 1'd1;
+			end
 		end
 	end
 	reg [3:0] counter1 = 0;
@@ -718,14 +1143,19 @@ module ay38500NTSC(
 	wire counter1_2002 = (counter1==2);
 	wire counter1_2004 = (counter1==4);
 	always @(posedge superclock) begin
-		c1_delay <= counter0_2003;
-		if(flop12)
-			counter1 <= 0;
-		else if(!counter0_2003 & c1_delay) begin
-			if(counter1==6)
+		if(state_load) begin
+			counter1 <= state_load_counter1;
+			c1_delay <= state_load_c1_delay;
+		end else begin
+			c1_delay <= counter0_2003;
+			if(flop12)
 				counter1 <= 0;
-			else
-				counter1 <= counter1 + 1'd1;
+			else if(!counter0_2003 & c1_delay) begin
+				if(counter1==6)
+					counter1 <= 0;
+				else
+					counter1 <= counter1 + 1'd1;
+			end
 		end
 	end
 	reg [7:0] counter2 = 0;
@@ -745,14 +1175,19 @@ module ay38500NTSC(
 	wire counter2_2013 = (counter2==13);
 	wire counter2_2060 = (counter2==60);
 	always @(posedge superclock) begin
-		c2_delay <= ripple_ctr9_2;
-		if(or57)
-			counter2 <= 0;
-		else if(ripple_ctr9_2 & !c2_delay) begin
-			if(counter2==126)
+		if(state_load) begin
+			counter2 <= state_load_counter2;
+			c2_delay <= state_load_c2_delay;
+		end else begin
+			c2_delay <= ripple_ctr9_2;
+			if(or57)
 				counter2 <= 0;
-			else
-				counter2 <= counter2 + 1'd1;
+			else if(ripple_ctr9_2 & !c2_delay) begin
+				if(counter2==126)
+					counter2 <= 0;
+				else
+					counter2 <= counter2 + 1'd1;
+			end
 		end
 	end
 	reg [8:0] counter3 = 0;
@@ -768,14 +1203,19 @@ module ay38500NTSC(
 	wire counter3_2034 = (counter3==34);
 	wire counter3_2021 = (counter3==21);
 	always @(posedge superclock) begin
-		c3_delay <= ripple_ctr10_2;
-		if(or58)
-			counter3 <= 0;
-		else if(ripple_ctr10_2 & !c3_delay) begin
-			if(counter3==216)
+		if(state_load) begin
+			counter3 <= state_load_counter3;
+			c3_delay <= state_load_c3_delay;
+		end else begin
+			c3_delay <= ripple_ctr10_2;
+			if(or58)
 				counter3 <= 0;
-			else
-				counter3 <= counter3 + 1'd1;
+			else if(ripple_ctr10_2 & !c3_delay) begin
+				if(counter3==216)
+					counter3 <= 0;
+				else
+					counter3 <= counter3 + 1'd1;
+			end
 		end
 	end
 	//MC: Multiple changes to jumping counters
@@ -786,23 +1226,28 @@ module ay38500NTSC(
 	wire counter4_2125 = (counter4==125);
 	wire counter4_2128 = (counter4==128);
 	always @(posedge superclock) begin
-		counter4_delay <= clk;
-		if(!reset) begin
-			counter4 <= 0;
-		end
-		else if(clk & !counter4_delay) begin
-			if(counter4==129) begin
-				counter4 <= !counter4_jump ? 9'd2 : !or32 ? 9'd0 : !or37 ? 9'd1 : !or40 ? 9'd4 : !or44 ? 9'd3 : 9'd0;
-				counter4_jump <= 0;
+		if(state_load) begin
+			counter4 <= state_load_counter4;
+			counter4_delay <= state_load_counter4_delay;
+			counter4_jump <= state_load_counter4_jump;
+		end else begin
+			counter4_delay <= clk;
+			if(!reset) begin
+				counter4 <= 0;
 			end
-			else
-				counter4 <= counter4 + 1'd1;
+			else if(clk & !counter4_delay) begin
+				if(counter4==129) begin
+					counter4 <= !counter4_jump ? 9'd2 : !or32 ? 9'd0 : !or37 ? 9'd1 : !or40 ? 9'd4 : !or44 ? 9'd3 : 9'd0;
+					counter4_jump <= 0;
+				end
+				else
+					counter4 <= counter4 + 1'd1;
+			end
+			if(!reset | flop3)
+				counter4_jump <= 0;
+			else if(pulser0)
+				counter4_jump <= 1;
 		end
-		if(!reset | flop3)// | counter4==129)
-			counter4_jump <= 0;
-		else if(pulser0)
-			counter4_jump <= 1;
-			
 	end
 
 	reg [9:0] counter5 = 0;
@@ -813,25 +1258,32 @@ module ay38500NTSC(
 	wire counter5_2265 = (counter5==265);
 	wire counter5_2268 = (counter5==267);
 	always @(posedge superclock) begin
-		counter5_delay <= flop7;
-		if(!reset) begin
-			counter5 <= 0;
-		end
-		else if(!flop7 & counter5_delay) begin//6-7-11-8-5-9-4-3-1-0
-			if(counter5==267) begin
-				counter5 <= !counter5_jump ? 10'd6 : !or59 ? 10'd7 : !or9 ? 10'd11 : !or10 ? 10'd8 : !or62 ? 10'd5 : !or61 ? 10'd9 : !or11 ? 10'd4 : !or12 ? 10'd3 : !or60 ? 10'd1 : 10'd0;
-				counter5_jump <= 0;
+		if(state_load) begin
+			counter5 <= state_load_counter5;
+			counter5_delay <= state_load_counter5_delay;
+			counter5_jump <= state_load_counter5_jump;
+		end else begin
+			counter5_delay <= flop7;
+			if(!reset) begin
+				counter5 <= 0;
 			end
-			else
-				counter5 <= counter5 + 1'd1;
+			else if(!flop7 & counter5_delay) begin
+				if(counter5==267) begin
+					counter5 <= !counter5_jump ? 10'd6 : !or59 ? 10'd7 : !or9 ? 10'd11 : !or10 ? 10'd8 : !or62 ? 10'd5 : !or61 ? 10'd9 : !or11 ? 10'd4 : !or12 ? 10'd3 : !or60 ? 10'd1 : 10'd0;
+					counter5_jump <= 0;
+				end
+				else
+					counter5 <= counter5 + 1'd1;
+			end
+			if(!reset)
+				counter5_jump <= 0;
+			else if(pulser0)
+				counter5_jump <= 1;
 		end
-		if(!reset)// | counter5==267)
-			counter5_jump <= 0;
-		else if(pulser0)
-			counter5_jump <= 1;
 	end
 	wire mux0_100 = (!or78 & counter1_2001) | (!or77 & counter1_2002) | (!or76 & counter1_2004);
 	//MC: Some changes to this line
 	wire mux1_100 = (!or81 & counter1_2005) | (!or80 & counter1_2001) | (!or79 & counter1_2003) | counter1_2002 | counter1_2004;//constants had to be added manually
 	wire mux2_100 = (!or81 & counter1_2005) | (!or85 & counter1_2001) | (!or83 & counter1_2003) | (!or84 & counter1_2002) | (!or82 & counter1_2004);
+`undef RESTORE_OR
 endmodule
