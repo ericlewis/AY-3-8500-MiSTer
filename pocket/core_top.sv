@@ -151,11 +151,14 @@ assign datatable_data = 32'd0;
 
 reg  [31:0] savestate_wr_buf_74a [0:SAVESTATE_WORDS-1];
 reg  [31:0] savestate_load_snap_74a [0:SAVESTATE_WORDS-1];
+reg  [31:0] savestate_set_snap_74a [0:5];
 reg  [31:0] savestate_rd_buf_sys [0:SAVESTATE_WORDS-1];
 reg  [31:0] savestate_rd_meta_74a [0:SAVESTATE_WORDS-1];
 reg  [31:0] savestate_rd_buf_74a [0:SAVESTATE_WORDS-1];
 reg  [31:0] savestate_load_meta_sys [0:SAVESTATE_WORDS-1];
 reg  [31:0] savestate_load_buf_sys [0:SAVESTATE_WORDS-1];
+reg  [31:0] savestate_set_meta_sys [0:5];
+reg  [31:0] savestate_set_buf_sys [0:5];
 
 reg savestate_save_req_toggle_74a = 0;
 reg savestate_save_req_meta_sys = 0, savestate_save_req_sys = 0, savestate_save_req_seen_sys = 0;
@@ -253,6 +256,11 @@ initial begin
         savestate_load_meta_sys[ssi] = 32'd0;
         savestate_load_buf_sys[ssi] = 32'd0;
     end
+    for (ssi = 0; ssi < 6; ssi = ssi + 1) begin
+        savestate_set_snap_74a[ssi] = 32'd0;
+        savestate_set_meta_sys[ssi] = 32'd0;
+        savestate_set_buf_sys[ssi] = 32'd0;
+    end
 end
 
 always @(posedge clk_74a) begin
@@ -278,6 +286,12 @@ always @(posedge clk_74a) begin
         savestate_wr_buf_74a[bridge_addr[5:2]] <= bridge_wr_data;
 
     if (savestate_start && !savestate_start_d) begin
+        savestate_set_snap_74a[0] <= settings[0];
+        savestate_set_snap_74a[1] <= settings[1];
+        savestate_set_snap_74a[2] <= settings[2];
+        savestate_set_snap_74a[3] <= settings[3];
+        savestate_set_snap_74a[4] <= settings[4];
+        savestate_set_snap_74a[5] <= settings[5];
         savestate_start_ack <= 1;
         savestate_start_ok <= 0;
         savestate_start_busy <= 1;
@@ -408,6 +422,10 @@ always @(posedge clk_sys) begin
         savestate_load_meta_sys[i] <= savestate_load_snap_74a[i];
         savestate_load_buf_sys[i] <= savestate_load_meta_sys[i];
     end
+    for (i = 0; i < 6; i = i + 1) begin
+        savestate_set_meta_sys[i] <= savestate_set_snap_74a[i];
+        savestate_set_buf_sys[i] <= savestate_set_meta_sys[i];
+    end
 
     savestate_save_req_meta_sys <= savestate_save_req_toggle_74a;
     savestate_save_req_sys <= savestate_save_req_meta_sys;
@@ -427,12 +445,12 @@ always @(posedge clk_sys) begin
 
     if (savestate_save_req_sys != savestate_save_req_seen_sys) begin
         savestate_save_req_seen_sys <= savestate_save_req_sys;
-        savestate_rd_buf_sys[0] <= set_sys[0];
-        savestate_rd_buf_sys[1] <= set_sys[1];
-        savestate_rd_buf_sys[2] <= set_sys[2];
-        savestate_rd_buf_sys[3] <= set_sys[3];
-        savestate_rd_buf_sys[4] <= set_sys[4];
-        savestate_rd_buf_sys[5] <= set_sys[5];
+        savestate_rd_buf_sys[0] <= savestate_set_buf_sys[0];
+        savestate_rd_buf_sys[1] <= savestate_set_buf_sys[1];
+        savestate_rd_buf_sys[2] <= savestate_set_buf_sys[2];
+        savestate_rd_buf_sys[3] <= savestate_set_buf_sys[3];
+        savestate_rd_buf_sys[4] <= savestate_set_buf_sys[4];
+        savestate_rd_buf_sys[5] <= savestate_set_buf_sys[5];
         {savestate_rd_buf_sys[6], savestate_rd_buf_sys[7], savestate_rd_buf_sys[8]} <= top_state_out;
         {savestate_rd_buf_sys[9], savestate_rd_buf_sys[10], savestate_rd_buf_sys[11], savestate_rd_buf_sys[12], savestate_rd_buf_sys[13]} <= chip_state_out_padded;
         savestate_rd_buf_sys[14] <= extra_state_out;
